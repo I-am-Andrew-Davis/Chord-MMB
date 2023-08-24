@@ -1,0 +1,228 @@
+#====================================================================
+#
+# Shock-Shock interaction problem (typically type 4)
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/shockshock.001000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 16
+file.plot_prefix = plot/shockshock.plot.
+#file.plot_extra_vars = -1
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 1024
+file.checkpoint_prefix = checkpoint/shockshock.
+
+# Extra plot outputs (grad density, and vorticity)
+#file.plot_mapped_derivs = 1
+
+# Plot mapping terms
+#file.plot_J = 1
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemShockShock
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+physics.fluid_models = inertial #viscous #multispecies
+
+#--------------------------------------------------------------------
+# Solution States
+#--------------------------------------------------------------------
+
+state.names = "reference" "initial" "wall"
+state.reference_frame-velocity = 0. 0. 0.
+state.reference_density        = 1.225
+state.reference_velocity       = 340. 0. 0.
+state.reference_pressure       = 101325.
+state.initial_frame-velocity = 0. 0. 0.
+state.initial_density        = 1.225
+state.initial_velocity       = 1700. 0. 0.
+state.initial_pressure       = 101325.
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Initial values
+ibc.initial_state = initial
+
+# Define which directions are periodic, 1 means it is periodic
+ibc.periodicity = 0 0 0
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 32 32 32
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0. 0. 0.
+
+# Computational domain length -- doesn't correlate with the final
+# sphere radius -- just make sure the ratios of these values match
+# the ratios of the num_cells values above
+grid.domain_length = 1. 1. 1..
+
+#--------------------------------------------------------------------
+# Coordinate system
+#--------------------------------------------------------------------
+
+coordsys.airfoi;_chord = 1.
+coordsys.airfoil_span = 1.
+coordsys.domain_ratio = 4.
+coordsys.camber_ratio = 0.
+coordsys.thickness_ratio = 0.4
+coordsys.angle_of_attack = 0.
+coordsys.radial_cell_ratio = 0.1
+coordsys.azimuthal_cell_ratio = 0.2
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+#fluid.mu = 1.7894E-5
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+#fluid.K = 2.5326E-2
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 1024
+
+# Initial solution time (optional: default 0.0)
+#sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 10000
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-7
+
+# CFL number (optional: default 1.0)
+sol.cfl = 0.8
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 0.8
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = SecondOrderPPM
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default set by method)
+#limit.face_order = 4
+
+# Face limiting
+#limit.limit_face_values = 0
+
+# Or these can be set individually, options are true, false, and 2nd
+limit.flatten_cell_convolution = 2nd
+limit.flatten_cell_deconvolution = 2nd
+limit.flatten_face_convolution = 2nd
+limit.flatten_face_deconvolution = 2nd
+
+# Limiting of deconvolutions
+limit.cell_deconvolution_limiting = true
+limit.face_deconvolution_limiting = true
+
+# Whether to use artificial viscosity (optional: default 1)
+#limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity_coef = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+#limit.fourth_order_artificial_viscosity_coef = 0.3
+
+# Provide extra limiting near boundaries
+limit.extra_boundary_limiting = 1
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 2
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 4 4
+
+# Regridding interval for each level
+amr.regrid_interval = 8 8 8
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 2
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 16
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+# Use clipping and redistribution for AMR interpolation
+limit.use_clipping = true
+limit.use_HO_clipping = false
+#limit.use_clipping_post_smoothing = false
+
+#--------------------------------------------------------------------
+# Tagging
+#--------------------------------------------------------------------
+
+tag.all_prepend = gradient density 0.1
+tag.all_prepend = physical_box -0.6 -0.1 0 -0.5 0.1 0
+tag.level_0 = boundary block_0 1 low
+#tag.level_0 = buffer 0
+tag.level_0 = base_box 8 0 0 23 31 31 exclude_outside
+#tag.level_1 = buffer 0
+tag.level_1 = base_box 8 0 0 23 31 31 exclude_outside
+#tag.level_2 = buffer 2
+tag.level_2 = base_box 8 0 0 23 31 31 exclude_outside
+#tag.level_3 = buffer 2
+tag.level_3 = base_box 8 0 0 23 31 31 exclude_outside
+
+#all_append = base_box 7 0 0 24 31 31 exclude_outside

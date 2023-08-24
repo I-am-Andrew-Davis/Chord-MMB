@@ -1,0 +1,233 @@
+#====================================================================
+#
+# Generalized Problem
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/plotname.001000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 1000
+file.plot_prefix = plot/shearFlow.plot.
+#file.plot_flattening = 1
+#file.plot_extra_vars = -1
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = -1
+file.checkpoint_prefix = checkpoint/shearFlow.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemShear
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+physics.fluid_models = inertial multispecies
+
+#--------------------------------------------------------------------
+# Thermally Perfect Multispecies
+#--------------------------------------------------------------------
+
+# Uncomment to make problem multispecies
+# Specify the location of the files containing the thermodynamic data
+# (default: ./Mechanism_files/thermo.inp)
+# therm.thermo_file = ../../Mechanism_files/thermo.inp
+# Specify the location of the files containing the transport data
+# (default: ./Mechanism_files/trans.inp)
+# therm.transport_file = ../../Mechanism_files/trans.inp
+
+# If schmidt_number > 0., then schmidt number is used
+#therm.schmidt_num = 1.
+# Set if some species specific Lewis numbers are used (optional: default true)
+#therm.multiple_lewis_numbers = true
+# Set the file to use for species specific Lewis numbers
+# (optional: default Mechanism_files/speciesLewisNumbers.inp)
+#therm.lewis_number_file = Mechanism_files/speciesLewisNumbers.inp
+# Define default Lewis number or only Lewis number
+# if multiple_lewis_number = false
+#therm.lewis_num = 1.
+
+# List of species for problem
+therm.species = N2 O2
+
+# Using species correction (default: true)
+# therm.use_species_correction = true
+
+# Which Riemann solver to use, adaptive, exact, or approx
+# (default: adaptive)
+#therm.riemann_solver = approx
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Initial values
+ibc.init_temperature = 300.
+ibc.init_pressure = 101325.
+ibc.init_specs = O2 N2
+ibc.init_mfs = 0.233 0.767
+# Freestream velocity
+ibc.init_vel = 0. 0. 0.
+
+# Velocity multiplier
+ibc.vel_factor = 100. 100. 100. 
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 128 128 128
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0. 0. 0.
+
+# Computational domain length
+grid.domain_length = 1. 1. 1.
+
+# Uncomment for warped
+coordsys.type = warped
+coordsys.scale = 0.1 0.1 0.0
+coordsys.relative_tolerance = 1.0e-12
+coordsys.absolute_tolerance = 1.0e-13
+coordsys.maximum_iterations = 100
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Reynolds number (optional: default 1.)
+fluid.Re = 100
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+#fluid.mu = -1.
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+#fluid.K = -1.
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 10000
+
+# Initial solution time (optional: default 0.0)
+#sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 5.4E-5
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-7
+
+# Limit on the time step growth (optional: default 1.1)
+#sol.max_dt_growth = 1.
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 0.8
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 0.8
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Apply face value limiting
+#limit.limit_face_values = 1
+
+# Apply face construction order reduction
+# Automatically applied when total dc flattening is true
+# and face value limiting is on
+#limit.use_fcor = 1
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default set by method)
+#limit.face_order = 4
+
+# Use apply DC flattening to all deconvolutions or convolutions
+# on all cells or faces
+# Options are true, false, or 2nd (optional: default false)
+#limit.total_dc_flattening = true
+
+# Tolerance for flattening directly
+# (optional: default 0.2)
+#limit.dc_flat_tol = 0.1
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity_coef = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+#limit.fourth_order_artificial_viscosity_coef = 0.3
+
+# Apply extra limiting for boundary adjacent cells
+#limit.extra_bound_lim = 1
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 1
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 4 8 8 8
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 0
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1

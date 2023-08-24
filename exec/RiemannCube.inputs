@@ -1,0 +1,266 @@
+#====================================================================
+#
+# General Riemann Problem:
+#
+# 19 cases are pre-defined that correspond to the 2D Riemann problems
+# presented in Lax's 1998 paper ("Two-Dimensional Riemann Problems")
+# For 1D compilation, these are not available.
+#
+# General, 3-dimensional Riemann problems can be specified by the
+# user within this input file.
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/RiemannCube.001000.3d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 1
+file.plot_prefix = plot/RiemannCube.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 1000
+file.checkpoint_prefix = checkpoint/RiemannCube.
+
+# Plot additional variables
+file.plot_mapped_derivs = 1
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemRiemannCube
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+#physics.fluid_models = inertial viscous multispecies
+physics.fluid_models = inertial #viscous
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+state.names = "boundary"
+
+state.boundary_frame-velocity = 0.0 0.0 0.0
+state.boundary_density = 1.225
+state.boundary_velocity = 0.0 0.0 0.0
+#state.inlet_temperature = 288.203086
+state.boundary_pressure = 101325.0
+
+ibc.initial_state = boundary
+
+# Regions are defined as
+#   x - lo, y - lo, z - lo = 0
+#   x - hi, y - lo, z - lo = 1
+#   x - lo, y - hi, z - lo = 2
+#   x - hi, y - hi, z - lo = 3
+#   x - lo, y - lo, z - hi = 4
+#   x - hi, y - lo, z - hi = 5
+#   x - lo, y - hi, z - hi = 6
+#   x - hi, y - hi, z - hi = 7
+
+# Initial values -- not used, necessary for CNSIBCGeneralized
+ibc.init_density = 1.225
+#ibc.init_temperature = 300.
+ibc.init_pressure = 101325.
+ibc.init_velocity = 104.16 0. 0.
+
+# True initial values
+ibc.density = 0.1 2.0 2.0 8.0 1.225 2.45 7.35 12.25
+#ibc.temperature = 300. 300. 300. 300. 300. 300. 300. 300.
+ibc.pressure = 10000. 500000. 500000. 1000000. 709275. 101325. 1013250. 405300.
+ibc.velocity_Region0 = 0. 0. 0.
+ibc.velocity_Region1 = 0. 0. 0.
+ibc.velocity_Region2 = 0. 0. 0.
+ibc.velocity_Region3 = 0. 0. 0.
+ibc.velocity_Region4 = 0. 0. 0.
+ibc.velocity_Region5 = 0. 0. 0.
+ibc.velocity_Region6 = 0. 0. 0.
+ibc.velocity_Region7 = 0. 0. 0.
+
+# Case number: optional (default is no case)
+#ibc.case = 3
+
+# Tag variable
+#ibc.tag_type = vms vms vms vms
+#ibc.tag_variable = density x-momentum y-momentum energy-density
+#ibc.tag_threshold = 0.5 0.5 0.5 0.5
+ibc.tag_type = gradient
+ibc.tag_variable = density
+ibc.tag_threshold = 0.1
+
+# Define which directions are periodic, 1 means it is periodic
+ibc.periodicity = 0 0 0
+
+# Define boundary conditions for non-periodic directions, lo and hi
+ibc.bc_type-default = SlipWall
+ibc.bc_state-default = boundary
+# Define order of BC (default: 4)
+ibc.bc_order-default = 1
+# ibc.lo_bc_x_order = 4
+# ibc.hi_bc_x_order = 4
+# ibc.lo_bc_y_order = 4
+# ibc.hi_bc_y_order = 4
+# ibc.lo_bc_z_order = 4
+# ibc.hi_bc_z_order = 4
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 128 128 128
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0. 0. 0.
+
+# Computational domain length
+grid.domain_length = 1. 1. 1.
+
+# Uncomment for warped
+# coordsys.type = warped
+# coordsys.scale = 0.1 0.1 0.0
+# coordsys.relative_tolerance = 1.0e-12
+# coordsys.absolute_tolerance = 1.0e-13
+# coordsys.maximum_iterations = 100
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Reynolds number (optional: default 1.)
+#fluid.Re = 100
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+#fluid.mu = -1.
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+#fluid.K = -1.
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 1000
+
+# Initial solution time (optional: default 0.0)
+#sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 10000
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-7
+
+# Limit on the time step growth (optional: default 1.1)
+#sol.max_dt_growth = 1.
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 1.0
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 0.8
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default set by method)
+#limit.face_order = 4
+
+# Convolution and deconvolution flattening
+# Flattening of convolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.convolution_flattening = false
+
+# Flattening of deconvolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.deconvolution_flattening = true
+
+# Flattening tolerances
+# r_0 tolerance (optional: default 0.45)
+#limit.r0_tol = 0.45
+# r_1 tolerance (optional: default 0.95)
+#limit.r1_tol = 0.95
+# Test 3 tolerance (optional: default 0.3)
+#limit.test3_tol = 0.55
+
+# Or these can be set individually, options are true, false, and 2nd
+#limit.flatten_cell_convolution = false
+#limit.flatten_cell_deconvolution = 2nd
+#limit.flatten_face_convolution = false
+#limit.flatten_face_deconvolution = true
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 0
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity_coef = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+#limit.fourth_order_artificial_viscosity_coef = 0.3
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 2
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2 2 4
+
+# Regridding interval for each level
+amr.regrid_interval = 2 2 2 4
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 1
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 64
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1

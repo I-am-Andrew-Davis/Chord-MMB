@@ -1,0 +1,291 @@
+#====================================================================
+#
+# Generalized Problem
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/plotname.001000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 1
+file.plot_prefix = plot/sphere_4.plot.
+#file.plot_extra_vars = -1
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 2500
+file.checkpoint_prefix = checkpoint/sphere_2.checkpoint.
+
+# Extra plot outputs (grad density, and vorticity)
+file.plot_mapped_derivs = 1
+
+# Plot mapping terms
+#file.plot_J = 1
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemSphere
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+physics.fluid_models = inertial viscous #multispecies
+
+# Turbulence model
+#turb.turb_model = LES
+
+# LES subgrid-scale model
+#turb.sgs_model = Smagorinsky
+#turb.sgs_model = StretchedVortex
+
+# Stretched-vortex model options
+
+# Vortex model is either 0 or 1
+# Default = 0: 0 = normal family of models
+#              1 = cross-product of resolved vorticity and eigenvector of srt
+#turb.vortex_model = 0
+
+# VortexProportion is [0,1]
+# Default = 1: 1 = most extensional eigenvector of strain-rate tensor
+#              0 = resolved vorticity vector
+#turb.vortex_proportion = 1
+
+# Correction for pressure from SVS model estimate of SGS KE
+#turb.use_sgs_ke_pressure_correction = 0
+
+# Coarsening method for computing SV model SGS kinetic energy estimate
+#turb.use_sgs_coarsening = 0
+
+# Coarsening ratio to be used on the coarsest (base) level
+#turb.sgs_ke_coarsest_coarsening_ratio = 1
+
+# Stretched-vortex wall-model
+#turb.use_wall_model = 1
+
+# Use only wall-model (no interior SGS stress model)
+#turb.only_use_wall_model = 0
+
+# Global streamwise direction for the wall-model
+#turb.streamwise_direction = 1. 0. 0.
+
+# Coarsening ratio for wall-model computation (Default: 1)
+# turb.wall_model_coarsening_ratio = 2
+
+#--------------------------------------------------------------------
+# Solution States
+#--------------------------------------------------------------------
+
+state.names = "initial" "wall"
+state.initial_frame-velocity = 0. 0. 0.
+state.initial_density        = 1.225
+state.initial_velocity       = 102.0882 0. 0.
+#state.initial_velocity       = 0. 0. 0.
+state.initial_pressure       = 101325.
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Don't set both rotation rates -- if they are, rad/s gets priority
+# Rotational rate of sphere (revolutions per second)
+#ibc.rotational_rate_rev_per_sec = 1
+# Rotational rate of sphere (radians per second)
+ibc.rotational_rate_rad_per_sec = 6.28318530718
+# Rotational axis (global Cartesian space)
+ibc.rotational_axis = 0 0 -1
+
+# Initial values
+ibc.initial_state = initial
+
+# Define which directions are periodic, 1 means it is periodic
+ibc.periodicity = 0 0 0
+
+# Define boundary conditions types
+ibc.bc_type-default = AdiabaticWall
+ibc.bc_type-block_0_y_hi = Farfield
+ibc.bc_type-block_1_y_hi = Farfield
+ibc.bc_type-block_2_y_hi = Farfield
+ibc.bc_type-block_3_y_hi = Farfield
+ibc.bc_type-block_4_y_hi = Farfield
+ibc.bc_type-block_5_y_hi = Farfield
+# Define boundary conditions types
+ibc.bc_state-default = wall
+ibc.bc_state-block_0_y_hi = initial
+ibc.bc_state-block_1_y_hi = initial
+ibc.bc_state-block_2_y_hi = initial
+ibc.bc_state-block_3_y_hi = initial
+ibc.bc_state-block_4_y_hi = initial
+ibc.bc_state-block_5_y_hi = initial
+
+# Define order of BC
+ibc.bc_order-default = 1
+# ibc.bc_order-block_0_y_lo = 1
+# ibc.bc_order-block_0_y_hi = 1
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 16 32 16
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0. 0. 0.
+
+# Computational domain length -- doesn't correlate with the final
+# sphere radius -- just make sure the ratios of these values match
+# the ratios of the num_cells values above
+grid.domain_length = 1. 2. 1.
+
+# Specify coordinate system type (optional: default cartesian)
+coordsys.type = sphere_outer
+coordsys.inner_radius = 0.0429257
+coordsys.outer_radius = 2
+# Roughly correlates to a squishing parameter for the smallest cells
+# right next to the sphere surface
+coordsys.alpha = -5.75e15
+# Roughly correlates to how rapidly the stretching decays away from
+# the sphere surface (large value = rapid decay, small = slow)
+coordsys.beta = 0.00001
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = 1.7894E-5
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = 2.5326E-2
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 100
+
+# Initial solution time (optional: default 0.0)
+#sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 10000
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-7
+
+# CFL number (optional: default 1.0)
+sol.cfl = 0.95
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 0.8
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default set by method)
+#limit.face_order = 4
+
+# Face limiting
+limit.limit_face_values = 0
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 0
+
+# Artificial viscosity parameter (optional: default 0.3)
+limit.artificial_viscosity_coef = 0.
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+#limit.fourth_order_artificial_viscosity_coef = 0.3
+
+# Provide extra limiting near boundaries
+#limit.extra_boundary_limiting = 1
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 4 8 8 8
+
+# # Amount to grow refined patch around tagged cells (optional: default 0)
+# amr.tag_buffer_size = 2
+
+# Set a base level for dynamic refinement (optional: default 0)
+amr.base_level = 1
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+# Use clipping and redistribution for AMR interpolation
+limit.use_clipping = true
+limit.use_HO_clipping = false
+limit.use_clipping_post_smoothing = false
+
+#--------------------------------------------------------------------
+# Tagging
+#--------------------------------------------------------------------
+
+# To properly nest level 1, you need
+#   buffer = BF(BF^{-1}(1))/nRef^1/nRef^0 + BF(BF^{-1}(GridBufferSize))/nRef^0
+# where BF is refining and BF^{-1} coarsening by the block factor
+
+tag.level_0 = physical_box -.07 -.07 -.07 0.8 .07 .07
+tag.level_0 = buffer 6
+
+tag.level_1 = boundary block_0 1 low
+tag.level_1 = boundary block_1 1 low
+tag.level_1 = boundary block_2 1 low
+tag.level_1 = boundary block_3 1 low
+tag.level_1 = boundary block_4 1 low
+tag.level_1 = boundary block_5 1 low
+tag.level_1 = value vorticity -100 100 outside
+tag.level_1 = buffer 1

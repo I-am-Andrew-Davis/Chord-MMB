@@ -1,0 +1,141 @@
+C       _______               __
+C      / ___/ /  ___  __  ___/ /
+C     / /__/ _ \/ _ \/ _\/ _  /
+C     \___/_//_/\___/_/  \_._/
+C     Please refer to Copyright.txt, in Chord's root directory.
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+
+c ----------------------------------------------------------------------
+c  Sets an initial uniform conservative solution on the grid
+c 
+c  rhs              <=  FAB of RHS of governing equation
+c  box               => Where to initialize/solve
+c  Wc                => Primitive variables fab
+c  g                 => Force value
+c  rcomp             => Component corresponding to density
+c  momcomp           => Component corresponding to momentum
+c  ecomp             => Component corresponding to energy
+c ----------------------------------------------------------------------
+
+      subroutine ADDPOISEUILLEFORCE(
+     &     CHF_FRA[rhs],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_CONST_REAL[g],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[ecomp],
+     &     CHF_CONST_INT[momcomp])
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      real_t momVal, rho
+
+      CHF_AUTOMULTIDO[box;i]
+         momVal = Wc(CHF_AUTOIX[i], momcomp)
+         rho = Wc(CHF_AUTOIX[i], rcomp)
+         rhs(CHF_AUTOIX[i], momcomp) = rho*g
+         rhs(CHF_AUTOIX[i], ecomp) = rho*momVal*g
+      CHF_ENDDO
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Solves the exact solution of the flow
+c
+c  U                <=  Conservative momentum equation
+c  box               => Where to initialize/solve
+c  X                 => Physical locations normal to the wall
+c  time              => Time
+c  h                 => Height of domain
+c  nu                => Kinematic viscosity
+c  rho               => Freestream density
+c  g                 => Force applied to flow
+c  nmax              => Maximum number of iterations to solve
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCPOISEUILLEEXACTSOL(
+     &     CHF_FRA[U],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA1[X],
+     &     CHF_CONST_INT[vcomp],
+     &     CHF_CONST_INT[engcomp],
+     &     CHF_CONST_REAL[time],
+     &     CHF_CONST_REAL[h],
+     &     CHF_CONST_REAL[nu],
+     &     CHF_CONST_REAL[rho],
+     &     CHF_CONST_REAL[p],
+     &     CHF_CONST_REAL[g],
+     &     CHF_CONST_INT[nmax])
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer n
+      real_t sum, steadyp, y, nval, factor, uval, ke
+
+      factor = -four*g*h*h/(nu*Pi**3)
+
+      CHF_AUTOMULTIDO[box;i]
+         y = X(CHF_AUTOIX[i])
+         steadyp = g*h*y/(two*nu)*(one - y/h)
+         sum = zero
+         nval = zero
+         do n = 0, nmax
+            nval = two*real(n) + one
+            sum = sum + one/(nval**3)*sin(nval*Pi*y/h)*
+     &           exp(-((nval*Pi/h)**2)*nu*time)
+         enddo
+         uval = steadyp + factor*sum
+         U(CHF_AUTOIX[i],vcomp) = rho*uval
+         ke = half*uval*uval
+         U(CHF_AUTOIX[i],engcomp) = p/(gamma - one) + rho*ke
+      CHF_ENDDO
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Solves the exact solution of the flow
+c
+c  U                <=  Conservative momentum equation
+c  box               => Where to initialize/solve
+c  X                 => Physical locations normal to the wall
+c  time              => Time
+c  h                 => Height of domain
+c  nu                => Kinematic viscosity
+c  rho               => Freestream density
+c  g                 => Force applied to flow
+c  nmax              => Maximum number of iterations to solve
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCTEMPERATUREEXACT(
+     &     CHF_FRA[U],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA1[X],
+     &     CHF_CONST_INT[velcomp],
+     &     CHF_CONST_REAL[delt],
+     &     CHF_CONST_REAL[rho],
+     &     CHF_CONST_REAL[eck],
+     &     CHF_CONST_REAL[h],
+     &     CHF_CONST_REAL[pr],
+     &     CHF_CONST_REAL[tw],
+     &     CHF_CONST_REAL[gasR])
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      real_t temp, conv, ke, pres, y
+
+      CHF_AUTOMULTIDO[box;i]
+         y = X(CHF_AUTOIX[i])
+         conv = (two*y - h)/h
+         temp = (one + half*delt/tw*(one - conv) + 
+     &        three/four*pr*eck*(one - conv**4))*tw
+         ke = half*U(CHF_AUTOIX[i],velcomp)**2
+         pres = temp*gasR*rho
+         U(CHF_AUTOIX[i], UENG) = rho*ke + pres/(gamma - one)
+      CHF_ENDDO
+
+      return
+      end

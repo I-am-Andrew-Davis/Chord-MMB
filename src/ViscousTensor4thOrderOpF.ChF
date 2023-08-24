@@ -1,0 +1,314 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+c ----------------------------------------------------------------------
+c  Computes the 4th order gradient of phi in one direction in cells
+c
+c  gradPhi          <=  Cell gradients
+c  phi               => Data
+c  box               => Box defining where to compute gradients
+c  gradDir           => Direction of gradient
+c  dx                => Mesh spacing
+c ----------------------------------------------------------------------
+
+      subroutine CELLGRADDIR4THO(
+     &   CHF_FRA1[gradPhi],
+     &   CHF_CONST_FRA1[phi],
+     &   CHF_BOX[box],
+     &   CHF_CONST_INT[gradDir],
+     &   CHF_CONST_REAL[dx])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+      integer CHF_AUTODECL[ii2]
+
+      real_t factor
+
+      CHF_AUTOID[ii1; gradDir]
+      CHF_AUTOID[ii2; gradDir; 2]
+      factor = one/(twelve*dx)
+
+      CHF_AUTOMULTIDO[box;i]
+         gradPhi(CHF_AUTOIX[i]) = factor*(
+     &     eight*phi(CHF_OFFSETIX[i;+ii1])
+     &     - eight*phi(CHF_OFFSETIX[i;-ii1])
+     &     - phi(CHF_OFFSETIX[i;+ii2])
+     &     + phi(CHF_OFFSETIX[i;-ii2]))
+      CHF_ENDDO
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Computes the 4th order gradient of phi using face-averaged values
+c
+c  gradPhi          <=  Cell gradients
+c  phi               => Face averaged data
+c  box               => Box defining where to computed gradients
+c  gradDir           => Direction of gradient
+c  dx                => Mesh spacing
+c ----------------------------------------------------------------------
+
+      subroutine CELLGRADFROMFACEAVG(
+     &     CHF_FRA1[gradPhi],
+     &     CHF_CONST_FRA1[phi],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[gradDir],
+     &     CHF_CONST_REAL[dx])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+
+      real_t factor
+
+      CHF_AUTOID[ii1; gradDir]
+      factor = one/dx
+
+      CHF_AUTOMULTIDO[box;i]
+         gradPhi(CHF_AUTOIX[i]) = factor*(
+     &     -phi(CHF_AUTOIX[i]) + phi(CHF_OFFSETIX[i;+ii1]))
+      CHF_ENDDO
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Computes the 4th order gradient of phi in a direction on faces from
+c  cell-centered data.  The gradient direction must be equal to the face
+c  direction
+c
+c  faceGradPhi      <=  Face gradients
+c  cellPhi           => Data on cells
+c  faceBox           => Box defining faces to compute gradient on
+c  gradDir           => Direction of gradient
+c  dx                => Mesh spacing
+c ----------------------------------------------------------------------
+
+      subroutine FACEGRADNORMDIR4THO(
+     &   CHF_FRA1[faceGradPhi],
+     &   CHF_CONST_FRA1[cellPhi],
+     &   CHF_BOX[faceBox],
+     &   CHF_CONST_INT[gradDir],
+     &   CHF_CONST_REAL[dx])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+      integer CHF_AUTODECL[ii2]
+
+      real_t factor
+
+      CHF_AUTOID[ii1; gradDir]
+      CHF_AUTOID[ii2; gradDir; 2]
+      factor = one/(twelve*dx)
+
+      CHF_AUTOMULTIDO[faceBox;i]
+         faceGradPhi(CHF_AUTOIX[i]) = factor*(
+     &      fifteen*cellPhi(CHF_AUTOIX[i])
+     &      - fifteen*cellPhi(CHF_OFFSETIX[i;-ii1])
+     &      - cellPhi(CHF_OFFSETIX[i;+ii1])
+     &      + cellPhi(CHF_OFFSETIX[i;-ii2]))
+      CHF_ENDDO
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Computes the 4th order gradient of phi in a direction on faces from
+c  cell-averaged data.  The gradient direction must be not equal to the
+c  face direction
+c
+c  faceGradPhi      <=  Face gradients
+c  cellGradPhi       => Cell gradients (same gradient direction as for
+c                       faces)
+c  faceBox           => Box defining faces to compute gradient on
+c  faceDir           => Direction of the faces
+c ----------------------------------------------------------------------
+
+      subroutine FACEGRADTANGDIR4THO(
+     &   CHF_FRA1[faceGradPhi],
+     &   CHF_CONST_FRA1[cellGradPhi],
+     &   CHF_BOX[faceBox],
+     &   CHF_CONST_INT[faceDir])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+      integer CHF_AUTODECL[ii2]
+
+      real_t factor
+
+      CHF_AUTOID[ii1; faceDir]
+      CHF_AUTOID[ii2; faceDir; 2]
+      factor = one/twelve
+
+      CHF_AUTOMULTIDO[faceBox;i]
+         faceGradPhi(CHF_AUTOIX[i]) = factor*(
+     &      seven*cellGradPhi(CHF_AUTOIX[i])
+     &      + seven*cellGradPhi(CHF_OFFSETIX[i;-ii1])
+     &      - cellGradPhi(CHF_OFFSETIX[i;+ii1])
+     &      - cellGradPhi(CHF_OFFSETIX[i;-ii2]))
+      CHF_ENDDO
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Computes the product of a face-averaged vector and a face-averaged
+c  vector
+c  outfab           <=  Fab containing the output vector
+c  matfab            => Face-averaged square matrix
+c                       Must have length of SpaceDim
+c  vecfab            => Face-averaged vector
+c                       Must have length of SpaceDim
+c  box               => Box of faces to compute energy flux
+c  stride            => Stride for matrix
+c                       For column stride should be SpaceDim
+c                       For row stride should be 1
+c  matstart          => Where to begin the components for MAT fab
+c  NOTE: MAT start and U start should be 0 for <U><MAT> operations
+c        and should only increase for when the tangential gradients are
+c        being added (which no longer occurs for pointwise operations)
+c ----------------------------------------------------------------------
+
+      subroutine MATVECPROD(
+     &     CHF_FRA1[outfab],
+     &     CHF_CONST_FRA[matfab],
+     &     CHF_CONST_FRA[vecfab],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[stride],
+     &     CHF_CONST_INT[matstart])
+
+      integer CHF_AUTODECL[i]
+      integer iComp, matComp, uComp
+
+
+      do iComp = 0, CH_SPACEDIM-1
+         matComp = matstart + iComp*stride
+         uComp = iComp
+         CHF_AUTOMULTIDO[box;i]
+            outfab(CHF_AUTOIX[i]) = outfab(CHF_AUTOIX[i])
+     &        +matfab(CHF_AUTOIX[i],matComp)*vecfab(CHF_AUTOIX[i],uComp)
+         CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+
+      subroutine FACEAVGVAL(
+     &     CHF_FRA[Wface],
+     &     CHF_CONST_FRA[W],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[numcomp],
+     &     CHF_CONST_INT[dir])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+      integer CHF_AUTODECL[ii2]
+      integer comp
+      real_t factor
+
+      CHF_AUTOID[ii1; dir]
+      CHF_AUTOID[ii2; dir; 2]
+      factor = one/twelve
+
+      do comp = 0, numcomp - 1
+         CHF_AUTOMULTIDO[box; i]
+            Wface(CHF_AUTOIX[i],comp) = factor*(seven*(
+     &        W(CHF_AUTOIX[i],comp) + W(CHF_OFFSETIX[i;-ii1],comp)) - 
+     &        (W(CHF_OFFSETIX[i;+ii1],comp) + W(CHF_OFFSETIX[i;-ii2],comp)))
+         CHF_ENDDO
+      enddo
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Computes the 4th order cell-averaged gradients in ghost cells 
+c  where one-sided scheme is used. The ghost cells are either close
+c  to the lo or hi physical bdry.
+
+c  gradPhi      <=  Cell-averaged gradients
+c  cellPhi       => Cell averages
+c  cellBox       => Box defining cells to compute cell-averages in
+c  gradDir       => Gradient direction
+c  sideSign      => -1 for low side, +1 for high side  
+c  dx            => Computational grid spacing
+c ----------------------------------------------------------------------
+
+      subroutine ONESIDEDCELLAVGGRAD(
+     &     CHF_FRA1[gradPhi],
+     &     CHF_CONST_FRA1[cellPhi],
+     &     CHF_BOX[cellBox],
+     &     CHF_CONST_INT[gradDir],
+     &     CHF_CONST_INT[sideSign],
+     &     CHF_CONST_REAL[dx])
+      
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+      integer CHF_AUTODECL[ii2]
+      integer CHF_AUTODECL[ii3]
+      
+      real_t factor
+
+      CHF_AUTOID[ii1; gradDir; sideSign]
+      CHF_AUTOID[ii2; gradDir; sideSign*2]
+      CHF_AUTOID[ii3; gradDir; sideSign*3]
+
+      factor = sideSign/(six*dx)
+
+      CHF_AUTOMULTIDO[cellBox;i]
+         gradPhi(CHF_AUTOIX[i])  = factor*(
+     &        11.0d0*cellPhi(CHF_AUTOIX[i]) 
+     &        -18.0d0*cellPhi(CHF_OFFSETIX[i;-ii1])
+     &        +nine*cellPhi(CHF_OFFSETIX[i;-ii2])
+     &        -two*cellPhi(CHF_OFFSETIX[i;-ii3]))
+      CHF_ENDDO 
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Computes the 4th order cell-averaged gradients in ghost cells 
+c  where a biased stencil is used. The ghost cells are either close
+c  to the lo or hi physical bdry.
+
+c  gradPhi      <=  Cell-averaged gradients
+c  cellPhi       => Cell averages
+c  cellBox       => Box defining cells to compute cell-averages in
+c  gradDir       => Gradient direction
+c  sideSign      => -1 for low side, +1 for high side 
+c  dx            => Computational grid spacing
+c ----------------------------------------------------------------------
+
+      subroutine BIASEDCELLAVGGRAD(
+     &     CHF_FRA1[gradPhi],
+     &     CHF_CONST_FRA1[cellPhi],
+     &     CHF_BOX[cellBox],
+     &     CHF_CONST_INT[gradDir],
+     &     CHF_CONST_INT[sideSign],
+     &     CHF_CONST_REAL[dx])
+      
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+      integer CHF_AUTODECL[ii2]
+
+      real_t factor
+
+      CHF_AUTOID[ii1; gradDir; sideSign]
+      CHF_AUTOID[ii2; gradDir; sideSign*2]
+      factor = sideSign/(six*dx)
+
+      CHF_AUTOMULTIDO[cellBox;i]
+         gradPhi(CHF_AUTOIX[i])  = factor*(
+     &        two*cellPhi(CHF_OFFSETIX[i;+ii1]) 
+     &        +three*cellPhi(CHF_AUTOIX[i])
+     &        -six*cellPhi(CHF_OFFSETIX[i;-ii1])
+     &        +one*cellPhi(CHF_OFFSETIX[i;-ii2]))
+      CHF_ENDDO       
+      return
+      end

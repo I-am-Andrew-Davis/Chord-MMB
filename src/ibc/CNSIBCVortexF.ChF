@@ -1,0 +1,211 @@
+C       _______               __
+C      / ___/ /  ___  __  ___/ /
+C     / /__/ _ \/ _ \/ _\/ _  /
+C     \___/_//_/\___/_/  \_._/
+C     Please refer to Copyright.txt, in Chord's root directory.
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+
+c     ----------------------------------------------------------------------
+c     Initializes the vortex around the center, normalized conditions
+c     
+c     U                <=  Conservative variables
+c     box               => Where to initialize/solve
+c     momcomp           => Component of x-momentum
+c     engcomp           => Component of energy variable
+c     Xfab              => Physical locations
+c     Cval              => Isentropic relation constant
+c     beta              => Vortex strength
+c     gasR              => Universal gas constant
+c     Tval              => Normalized temperature value
+c     center            => Location of the center of the vortex
+c     Uinf              => Freestream velocity
+c     ----------------------------------------------------------------------
+
+      subroutine CNSIBCVORTEXINITNORM(
+     &     CHF_FRA[Uc],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[momcomp],
+     &     CHF_CONST_INT[engcomp],
+     &     CHF_CONST_FRA[Xfab],
+     &     CHF_CONST_REAL[Cval],
+     &     CHF_CONST_REAL[beta],
+     &     CHF_CONST_REAL[gasR],
+     &     CHF_CONST_REAL[Tval],
+     &     CHF_CONST_REALVECT[center],
+     &     CHF_CONST_REALVECT[Uinf])
+#include "EosCommon.fh"      
+
+      integer CHF_AUTODECL[i]
+      real_t CHF_DDECL[x;y;z]
+      real_t CHF_DDECL[uu;vv;ww]
+      real_t rval, ke, vth
+      real_t dTval, rho, p
+
+      CHF_AUTOMULTIDO[box;i]
+         CHF_DTERM[
+         x = Xfab(CHF_AUTOIX[i],0) - center(0);
+         y = Xfab(CHF_AUTOIX[i],1) - center(1);
+         z = Xfab(CHF_AUTOIX[i],2)]
+         rval = sqrt(CHF_DTERM[x*x; + y*y; + z*z])
+         dTval = -(gamma - one)*beta*beta*exp(one - rval*rval)/
+     &        (eight*gamma*Pi*Pi)
+         rho = (Cval*(Tval + dTval))**(one/(gamma - one))/gasR
+         Uc(CHF_AUTOIX[i],URHO) = rho
+         vth = beta/(two*Pi)*exp((one - rval*rval)/two)
+         CHF_DTERM[
+         uu = Uinf(0);
+         uu = Uinf(0) - y*vth
+         vv = Uinf(1) + x*vth;
+         ww = Uinf(2)]
+         CHF_DTERM[
+         Uc(CHF_AUTOIX[i],momcomp) = rho*uu;
+         Uc(CHF_AUTOIX[i],momcomp+1) = rho*vv;
+         Uc(CHF_AUTOIX[i],momcomp+2) = rho*ww]
+         ke = half*(CHF_DTERM[uu*uu; + vv*vv; + ww*ww])
+         p = rho*gasR*(Tval + dTval)
+         Uc(CHF_AUTOIX[i], engcomp) = rho*ke + p/(gamma - one)
+      CHF_ENDDO
+
+      return
+      end
+
+
+c     ----------------------------------------------------------------------
+c     Initializes the vortex around the center, normalized conditions
+c     
+c     U                <=  Conservative variables
+c     box               => Where to initialize/solve
+c     momcomp           => Component of x-momentum
+c     engcomp           => Component of energy variable
+c     Xfab              => Physical locations
+c     Cval              => Isentropic relation constant
+c     beta              => Vortex strength
+c     gasR              => Universal gas constant
+c     Tval              => Normalized temperature value
+c     center            => Location of the center of the vortex
+c     Uinf              => Freestream velocity
+c     ----------------------------------------------------------------------
+
+      subroutine CNSIBCVORTEXINIT(
+     &     CHF_FRA[Uc],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[momcomp],
+     &     CHF_CONST_INT[engcomp],
+     &     CHF_CONST_FRA[Xfab],
+     &     CHF_CONST_REAL[beta],
+     &     CHF_CONST_REAL[gasR],
+     &     CHF_CONST_REAL[Tinf],
+     &     CHF_CONST_REAL[pinf],
+     &     CHF_CONST_REALVECT[center],
+     &     CHF_CONST_REALVECT[Uinf])
+#include "EosCommon.fh"      
+
+      integer CHF_AUTODECL[i]
+      real_t CHF_DDECL[x;y;z]
+      real_t CHF_DDECL[uu;vv;ww]
+      real_t rval, ke, vth, rho, p, T, cp
+
+      cp = gamma*gasR/(gamma - one)
+      CHF_AUTOMULTIDO[box;i]
+         CHF_DTERM[
+         x = Xfab(CHF_AUTOIX[i],0) - center(0);
+         y = Xfab(CHF_AUTOIX[i],1) - center(1);
+         z = Xfab(CHF_AUTOIX[i],2)]
+         rval = sqrt(CHF_DTERM[x*x; + y*y; + z*z])
+         vth = beta/(two*Pi)*exp((one - rval*rval)/two)
+         p = pinf*(one -(beta/(two*Pi))**2/(two*gasR*Tinf)
+     &        *exp((one - rval*rval)))
+         T = Tinf*(p/pinf)**((gamma-one)/gamma)
+         rho = p/(gasR*T)
+         Uc(CHF_AUTOIX[i],URHO) = rho
+         CHF_DTERM[
+         uu = Uinf(0);
+         uu = Uinf(0) - y*vth
+         vv = Uinf(1) + x*vth;
+         ww = Uinf(2)]
+         CHF_DTERM[
+         Uc(CHF_AUTOIX[i],momcomp) = rho*uu;
+         Uc(CHF_AUTOIX[i],momcomp+1) = rho*vv;
+         Uc(CHF_AUTOIX[i],momcomp+2) = rho*ww]
+         ke = half*(CHF_DTERM[uu*uu; + vv*vv; + ww*ww])
+         Uc(CHF_AUTOIX[i], engcomp) = rho*ke + p/(gamma - one)
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     Initializes the vortex around the center, multi-species
+c     
+c     Wc               <=  Primitive variables
+c     box               => Where to initialize/solve
+c     rcomp             => Density component
+c     pcomp             => Pressure component
+c     tcomp             => Temperature component
+c     velcomp           => Velocity component in 0 direction
+c     wcompstart        => First species component
+c     numspecies        => Number of species
+c     Xfab              => Physical locations
+c     pinf              => Stagnation pressure
+c     Tinf              => Stagnation temperature
+c     beta              => Vortex strength
+c     rgas              => Universal gas constant
+c     Rc                => Core radius
+c     center            => Location of the center of the vortex
+c     Uinf              => Freestream velocity
+c     massfractions     => Mass fractions
+c     ----------------------------------------------------------------------
+
+      subroutine CNSIBCVORTEXINITCN(
+     &     CHF_FRA[Wc],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[velcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_FRA[Xfab],
+     &     CHF_CONST_REAL[pinf],
+     &     CHF_CONST_REAL[Tinf],
+     &     CHF_CONST_REAL[beta],
+     &     CHF_CONST_REAL[gasR],
+     &     CHF_CONST_REALVECT[center],
+     &     CHF_CONST_REALVECT[Uinf],
+     &     CHF_CONST_VR[massfractions])
+#include "EosCommon.fh"      
+
+      integer CHF_AUTODECL[i]
+      integer comp, wcomp
+      real_t CHF_DDECL[x;y;z]
+      real_t CHF_DDECL[uu;vv;ww]
+      real_t rval, vth, T, p
+
+      CHF_AUTOMULTIDO[box;i]
+         do comp = 0, numspecies - 1
+            wcomp = comp + wcompstart
+            Wc(CHF_AUTOIX[i],wcomp) = massfractions(comp)
+         enddo
+         CHF_DTERM[
+         x = Xfab(CHF_AUTOIX[i],0) - center(0);
+         y = Xfab(CHF_AUTOIX[i],1) - center(1);
+         z = Xfab(CHF_AUTOIX[i],2)]
+         rval = sqrt(CHF_DTERM[x*x; + y*y; + z*z])
+         vth = beta/(two*Pi)*exp((one - rval*rval)/two)
+         CHF_DTERM[
+         Wc(CHF_AUTOIX[i],velcomp) = Uinf(0);
+         Wc(CHF_AUTOIX[i],velcomp) = Uinf(0) - vth*y
+         Wc(CHF_AUTOIX[i],velcomp+1) = Uinf(1) + vth*x;
+         Wc(CHF_AUTOIX[i],velcomp+2) = Uinf(2)]
+         p = pinf*(one - (beta/(two*Pi))**2/(two*gasR*Tinf)
+     &        *exp((one - rval*rval)))
+         T = Tinf*(p/pinf)**((gamma-one)/gamma)
+         Wc(CHF_AUTOIX[i], pcomp) = p
+         Wc(CHF_AUTOIX[i], tcomp) = T
+         Wc(CHF_AUTOIX[i], rcomp) = -1.
+      CHF_ENDDO
+
+      return
+      end

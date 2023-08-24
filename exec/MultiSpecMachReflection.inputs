@@ -1,0 +1,228 @@
+#====================================================================
+#
+# Multispecies Mach reflection problem
+#
+# Two levels of refinement are required for observing close capture
+# of the shocks.  With godunov.max_level set to 2, the solution takes
+# ~3 min on 4 cores.
+#
+# If you are willing to wait, godonuv.max_level = 3 is quite
+# impressive.  (~10 min on 40 cores).
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/CMR_Ar.000018.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 1
+file.plot_prefix = plot/msMR.plot.
+#file.plot_JU = 1
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 8
+file.checkpoint_prefix = checkpoint/msMR.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = SpecMachReflection
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+physics.fluid_models = inertial viscous multispecies
+
+#--------------------------------------------------------------------
+# Multispecies
+#--------------------------------------------------------------------
+
+# Specify the location of the files containing the thermodynamic data
+# (default: ./Mechanism_files/thermo.inp)
+# therm.thermo_file = ../../Mechanism_files/thermo.inp
+# Specify the location of the files containing the transport data
+# (default: ./Mechanism_files/trans.inp)
+# therm.transport_file = ../../Mechanism_files/trans.inp
+
+# If schmidt_number > 0., then schmidt number is used
+#therm.schmidt_num = 1.
+# Default uses the Lewis numbers for each species defined in
+# Mechanism_files/speciesLewisNumbers.inp
+therm.lewis_num = 1.
+
+therm.species = Ar
+
+# Using species correction (default: true)
+# therm.use_species_correction = true
+
+# Which Riemann solver to use, adaptive, exact, or approx
+# (default: adaptive)
+# therm.riemann_solver = adaptive
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# This is only used for the initial guess for temperature
+fluid.gamma = 1.6604
+# Viscosity and thermal conductivity are set use CEA for conditions
+# behind the normal shock
+fluid.mu = 9.319E-5
+fluid.K = 0.
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 96 24 12
+
+# Physical domain length (must be 1.0 for x and scaled by num cells
+# in other directions)
+grid.domain_length = 1.0 0.25 0.125
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 200000
+
+# Initial solution time (optional: default 0.0)
+sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 0.00014
+
+# CFL number (optional: default 1.0)
+# sol.max_dt_growth = 1.05
+# sol.max_dt_tolerance_factor = 1.05
+#sol.initial_cfl = 0.2
+sol.cfl = 0.6
+#sol.fixed_dt = 5.0e-7
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Order of face construction (optional: default 5)
+#limit.face_order = 5
+
+# Convolution and deconvolution flattening
+# Flattening of convolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.convolution_flattening = false
+
+# Flattening of deconvolution operations
+# Options are true, false, and 2nd (optional: default false)
+limit.deconvolution_flattening = true
+
+# Or these can be set individually, options are true, false, and 2nd
+#limit.flatten_cell_convolution = false
+#limit.flatten_cell_deconvolution = 2nd
+#limit.flatten_face_convolution = false
+#limit.flatten_face_deconvolution = true
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+limit.artificial_viscosity_coef = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3).  Note
+# that 0.42 is 0.3*gamma
+#limit.fourth_order_artificial_viscosity_coef = 0.3
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 2
+
+# Refinement ratio between levels
+amr.ref_ratio = 4 4 4
+
+# Regridding interval for each level
+amr.regrid_interval = 4 4 4
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+# We need 6 ghosts before the shock but the gridbuffer will add 5 and the shock
+# will be more disperse on the coarser level.
+# Then we need a value equivalent to the regrid interval, assuming the time-
+# step is restricted by the speed of the feature we are tracking.
+amr.tag_buffer_size = 4
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+#--------------------------------------------------------------------
+# IBC
+#--------------------------------------------------------------------
+
+ibc.tag_threshold = 0.06
+ibc.wall_order = 4
+ibc.upstream_specs = Ar
+ibc.upstream_mfs = 1.0
+ibc.downstream_specs = Ar
+ibc.downstream_mfs = 1.0
+
+# Ramp values, must be given in input file
+# Angle given in degrees
+ibc.ramp_angle = 20.
+ibc.lead_length = 0.07
+ibc.ramp_length = 0.09
+ibc.base_loc = -0.05
+
+# Conditions came from CEA
+
+ibc.pressure = 2000.
+ibc.density = 0.03214
+ibc.shock_mach = 2.0
+ibc.pressure_1 = 9488.0
+ibc.density_1 = 0.073602
+ibc.u_1 = 362.6
+ibc.slip_wall_end = -0.025
+# Set the lower x boundary
+# 0 - Dirichlet
+# 1 - Extrapolated
+ibc.lower_x_bound = 0
+# Set the upper y boundary
+# 0 - Dirichlet
+# 1 - Extrapolated
+# 2 - Farfield
+ibc.upper_y_bound = 2

@@ -1,0 +1,295 @@
+#====================================================================
+#
+# Taylor-Green Vortex Problem
+#
+# Note: Validation cases derived from High-Order CFD workshops
+#       use Re = 1600, Mach = 0.1, L = 1/(2*pi), U_0 = 1.0,
+#       Rho_0 = 1.0, and Pr = 0.71
+#       As a result, we need to change mu and k to maintain Pr.
+#
+# Note: Domain = 1.0, Characteristic time = tc = time*V/L = t*2*pi
+#       For this setup, max time = 20/(2*pi) = 3.18
+#       Scaled kinetic energy = 8*(kinetic energy)
+#       Enstrophy = tc*tc*density*(1/2)*(vorticity \dot vorticity)
+#
+# Note: For CFL = 0.8, varying time step, max number of time steps is
+#         6000 for 64^3
+#        12000 for 128^3
+#       250000 for 256^3
+#       For constant time step = 1.59e-4, max number of time steps is
+#       20000 for all sizes
+#
+# Note: For the Taylor-Green problem, the PPM limiter should be on
+#       otherwise, the under-resolution creates oscillations
+#
+# Note: The turbulence-forcing feature can be used with dimensional
+#       arguments. However, it modifies the initial velocity of the
+#       Taylor-Green vortex problem. As a result, the density could
+#       become negative on you. Just make sure that your density is
+#       able to handle the worst case:
+#
+#         rho = rho_0 - gamma*M_t^2*(11.7/8)
+#
+# Note: The integral length scale is assumed to be Domain/5. The
+#       turbulent dissipation rate is assumed to be u_t^3/L. The
+#       rms velocity is given by sqrt{3*\bm{u}\otimes\bm{u}}. The
+#       turbulent Mach number is u_rms/(speed of sound). The
+#       turbulent Reynolds number is given by u_rms*rho*L/mu.
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/TaylorGreen.001000.3d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 1
+file.plot_prefix = plot/TaylorGreen.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 1000
+file.checkpoint_prefix = checkpoint/TaylorGreen.
+
+# Plot additional variables
+file.plot_mapped_derivs = 1
+
+# NOTE: The following is in development
+#file.plot_low_face_avg = primitive fluxes turb
+#file.plot_low_face_avg_time_avg = primitive fluxes turb
+file.plot_low_face_avg = primitive turb
+file.plot_low_face_avg_time_avg = primitive turb
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemTaylorGreen
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+# Plain Taylor-Green vortex problem
+physics.fluid_models = inertial viscous
+
+# Forced turbulence with Taylor-Green ICs
+#physics.fluid_models = inertial viscous source
+#turb.turb_forcing = 1
+
+# Proportional controller for mean-value of turbulent kinetic energy
+# Default: 0 (values greater than 1 provide faster approach to target)
+#turb.mean_energy_controller_amplitude = 0.
+
+# Turbulence model
+turb.turb_model = LES
+
+# LES subgrid-scale model
+#turb.sgs_model = Smagorinsky
+turb.sgs_model = StretchedVortex
+
+# Stretched-vortex model options
+
+# Vortex model is either 0 or 1
+# Default = 0: 0 = normal family of models
+#              1 = cross-product of resolved vorticity and eigenvector of srt
+turb.vortex_model = 0
+
+# VortexProportion is [0,1]
+# Default = 1: 1 = most extensional eigenvector of strain-rate tensor
+#              0 = resolved vorticity vector
+turb.vortex_proportion = 1
+
+# Correction for pressure from SVS model estimate of SGS KE
+turb.use_sgs_ke_pressure_correction = 0
+
+# Coarsening method for computing SV model SGS kinetic energy estimate
+turb.use_sgs_coarsening = 0
+
+# Coarsening ratio to be used on the coarsest (base) level
+turb.sgs_ke_coarsest_coarsening_ratio = 1
+
+#--------------------------------------------------------------------
+# Solution states -- use turb for defining velocity fluctuations
+#--------------------------------------------------------------------
+
+state.names = "mean" "turb"
+
+state.mean_frame-velocity = 0. 0. 0.
+state.mean_velocity = 0. 0. 0.
+state.mean_density  = 1.0
+state.mean_pressure = 71.0
+
+state.turb_frame-velocity = 0. 0. 0.
+state.turb_velocity = 1. 1. 0.
+state.turb_density  = 1.0
+state.turb_pressure = 71.0
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Define which directions are periodic
+ibc.periodicity = 1 1 1
+
+# Initial state
+ibc.initial_state = mean
+
+# Turbulent state
+ibc.turb_state = turb
+
+# Define default boundary condition types and states
+ibc.bc_type-default  = AdiabaticWall
+ibc.bc_state-default = wall
+
+# Number of vortices in each direction
+ibc.vortex_number = 2 2 2
+
+# Tag method -- options: gradient, value, vorticity
+#                        vms, vms_vorticity
+ibc.tag_type = vms
+# Tag variable
+ibc.tag_variable = density
+# Tag threshold
+ibc.tag_threshold = 0.2
+
+# Taylor-Green vortex z-velocity IC: 0 = sine, 1 = cosine
+ibc.z_velocity_initialization = 1
+
+# Thermo initialization: 0 = constant temperature, 1 = constant density
+ibc.initialize_uniform_density = 1
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 64 64 64
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0. 0. 0.
+
+# Physical domain length
+grid.domain_length = 1.0 1.0 1.0
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = 1.7894E-5
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = 2.5326E-2
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 10000
+
+# Initial solution time (optional: default 0.0)
+sol.initial_time = 0.
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time, 3.1831 = 20 characteristic times)
+sol.max_time = 3.1831
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-3
+
+# Limit on the time step growth (optional: default 1.1)
+#sol.max_dt_growth = 1.
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 1.0
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 0.8
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default set by limit.method)
+#limit.face_order = 4
+
+# Other limiting options set by limit.method
+#limit.PPM_limiter = 0
+#limit.limit_face_values = 0
+#limit.use_flattening = 0
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 0
+
+# Artificial viscosity parameter (optional: default 0.3)
+limit.artificial_viscosity_coef = 0.
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+limit.fourth_order_artificial_viscosity_coef = 0.
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 2 2 2 2
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 2
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 16
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+#--------------------------------------------------------------------
+# Turbulence modeling
+#--------------------------------------------------------------------
+
+#turb.explicit_filter = spectral
+#turb.spectral_filter_profile = sharp sharp_isotropic tanh gaussian
+#turb.tanh_filter_width = 5
+#turb.gaussian_filter_rolloff = 24
+#turb.spectral_domain_resolution = 24 24 24

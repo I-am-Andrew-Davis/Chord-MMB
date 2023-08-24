@@ -1,0 +1,414 @@
+#====================================================================
+#
+# Recirculating-inlet flat-plate turbulent-boundary-layer
+#
+# The parameters for this case are based on Inoue & Pullin 2011
+# "Large-eddy simulation of the zero-pressure-gradient turbulent
+# boundary layer up to Re_{\theta} = \mathcal{O}\left(10^{12}\right)"
+# This simulation matches case A4 in the paper
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/RCFPTBL.001000.3d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 1000
+file.plot_prefix = plot/RCFPTBL.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 10000
+file.checkpoint_prefix = checkpoint/RCFPTBL.checkpoint.
+
+# Plot additional variables
+file.plot_mapped_derivs = 1
+
+# Plot time-averaged quantities
+file.plot_time_averaged_turb_var = 1
+# Time to start averaging
+turb.start_averaging_time = 0.45 # roughly 20 flow-through times
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemRecirculatingInletTFP
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+# Plain mixing layer problem
+physics.fluid_models = inertial viscous
+
+# Turbulence model
+#turb.turb_model = LES
+
+# LES subgrid-scale model
+#turb.sgs_model = Smagorinsky
+#turb.sgs_model = StretchedVortex
+
+# Stretched-vortex model options
+
+# Vortex model is either 0 or 1
+# Default = 0: 0 = normal family of models
+#              1 = cross-product of resolved vorticity and eigenvector of srt
+#turb.vortex_model = 0
+
+# VortexProportion is [0,1]
+# Default = 1: 1 = most extensional eigenvector of strain-rate tensor
+#              0 = resolved vorticity vector
+#turb.vortex_proportion = 1
+
+# Correction for pressure from SVS model estimate of SGS KE
+#turb.use_sgs_ke_pressure_correction = 0
+
+# Coarsening method for computing SV model SGS kinetic energy estimate
+#turb.use_sgs_coarsening = 0
+
+# Coarsening ratio to be used on the coarsest (base) level
+#turb.sgs_ke_coarsest_coarsening_ratio = 1
+
+# Stretched-vortex wall-model
+#turb.use_wall_model = 1
+
+# Use only wall-model (no interior SGS stress model)
+#turb.only_use_wall_model = 0
+
+# Global streamwise direction for the wall-model
+#turb.streamwise_direction = 1. 0. 0.
+
+# Coarsening ratio for wall-model computation (Default: 1)
+#turb.wall_model_coarsening_ratio = 2
+
+# Height of virtual-wall as a fraction of first cell wall-normal height
+#turb.virtual_wall_height = 0.18
+
+# Use enforce the wall-model-predicted shear-stress at the wall-face
+#turb.enforce_wall_model_shear_stress = 1
+
+# Enforce a law-of-the-wall shear-stress
+# Note: This can be used without a turbulence model
+turb.enforce_modeled_wall_shear_stress = 1
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Define which directions are periodic
+ibc.periodicity = 0 0 1
+
+state.names = "inlet" "outlet" "wall"
+
+state.inlet_frame-velocity = 68.058798 0.0 0.0
+state.inlet_density = 1.225
+state.inlet_velocity = 68.058798 0.0 0.0
+#state.inlet_temperature = 288.203086
+state.inlet_pressure = 101325.0
+
+state.outlet_frame-velocity = 68.058798 0.0 0.0
+state.outlet_density = 1.225
+state.outlet_velocity = 68.058798 0.0 0.0
+#state.outlet_temperature = 288.203086
+state.outlet_pressure = 101325.0
+
+ibc.initial_state = inlet
+
+# Define boundary conditions for non-periodic directions, lo and hi
+ibc.bc_type-default = AdiabaticWall
+ibc.bc_state-default = wall
+
+ibc.bc_type-_x_lo = RelaxedCBCIn
+ibc.bc_state-_x_lo = inlet
+
+ibc.bc_type-_x_hi = RelaxedCBCOut
+ibc.bc_state-_x_hi = outlet
+
+ibc.bc_type-_y_hi = RelaxedCBCFar
+ibc.bc_state-_y_hi = inlet
+
+# Define order of BC (default: 4)
+ibc.bc_order-default = 1
+ibc.bc_order-_y_lo = 4
+
+# Boundary layer thickness at inlet
+ibc.inlet_boundary_layer_thickness = 0.042926
+# Guess the maximum possible y-plus value in the first wall adjacent cell
+# (plus a some)
+ibc.y_plus_max_guess = 1.E10
+# Magnitude of perturbation velocity
+ibc.vel_perturb_magnitude = 10.0
+# Number of perturbations in the domain
+ibc.perturb_freq = 16 3 2
+# Recycle instantaneous wall-normal velocity
+ibc.recycle_mean_yVel = 0
+# Inlet boundary condition method
+ibc.inflow_method = 0
+
+# Tag method -- options: gradient, value, vorticity, vms, vms_vorticity
+ibc.tag_type = vorticity
+# Tag variable
+#ibc.tag_variable = density
+# Tag threshold
+ibc.tag_threshold = 50.
+#ibc.tag_lo_threshold = 0.
+
+#--------------------------------------------------------------------
+# Grid -- simple test
+#--------------------------------------------------------------------
+
+# Coarsest grid
+#grid.num_cells = 128 16 16
+
+# Physical domain origin (optional: default 0)
+#grid.domain_origin = 0. 0. 0.
+
+# Physical domain length
+#grid.domain_length = 1. 0.125 0.125
+
+# # Skewed coordinate system (comment out to use Cartesian)
+# coordsys.type = skewed
+# coordsys.angle = 60
+# coordsys.physical_length = 1. 0.125 0.125
+
+# # Warped coordinate system (comment out to use Cartesian)
+# coordsys.type = warped
+# coordsys.scale = 0.05 0.05 0.05
+# coordsys.relative_tolerance = 1.0e-12
+# coordsys.absolute_tolerance = 1.0e-13
+# coordsys.maximum_iterations = 100
+
+#--------------------------------------------------------------------
+# Grid -- normal case -- same as Pullin's case but with cubic cells
+#                        as opposed to rectangular
+#--------------------------------------------------------------------
+
+# # Coarsest grid
+# #grid.num_cells = 2304 256 384 # fine experiment case (Pullin case A4H)
+# #grid.num_cells = 1152 128 192 # medium exp. case (Pullin case A4)
+# #grid.num_cells =  576  64  96 # fine test case -- coarse exp. case (A4L)
+# grid.num_cells =  288  32  48 # medium test case
+# #grid.num_cells =  144  16  24 # coarse test case
+
+# # Physical domain origin (optional: default 0)
+# grid.domain_origin = 0. 0. 0.
+
+# # Physical domain length
+# grid.domain_length = 1.545336 0.171704 0.257556 # 36\delta 4\delta 6\delta
+
+# # Location of recycling plane (percent of domain length)
+# # NOTE: this is a grid specific parameter (should be a periodic location)
+# ibc.recycling_plane_location = 0.777777777778
+
+#--------------------------------------------------------------------
+# Grid -- true case -- same as Pullin's case (rectangular cells)
+#--------------------------------------------------------------------
+
+# Coarsest grid
+#grid.num_cells = 768 256 128 # fine experiment case (Pullin case A4H)
+#grid.num_cells = 384 128  64 # medium exp. case (Pullin case A4)
+#grid.num_cells = 192  64  32 # fine test case -- coarse exp. case (A4L)
+#grid.num_cells =  96  32  16 # medium test case
+grid.num_cells =  48  16   8 # coarse test case
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0. 0. 0.
+
+# Physical domain length -- this is modified by stretching a few lines later
+grid.domain_length = 0.515112 0.171704 0.085852 # 36\delta 4\delta 6\delta
+
+# Coordinate system type
+coordsys.type = cartesian
+# Coordinate system origin
+#coordsys.origin = 0. 0. 0.
+# Coordinate system stretching
+coordsys.stretch = 3. 1. 3.
+# Final desired physical domain length
+#coordsys.physical_length = 1.545336 0.171704 0.257556
+
+# Location of recycling plane (percent of domain length)
+# NOTE: this is a grid specific parameter (should be a periodic location)
+ibc.recycling_plane_location = 0.75
+
+#--------------------------------------------------------------------
+# Grid -- another case -- same as Pullin's case except longer
+#--------------------------------------------------------------------
+
+# # Coarsest grid
+# #grid.num_cells = 1536 256 128 # fine experiment case (Pullin case A4H)
+# #grid.num_cells =  768 128  64 # medium exp. case (Pullin case A4)
+# #grid.num_cells =  384  64  32 # fine test case -- coarse exp. case (A4L)
+# grid.num_cells =  192  32  16 # medium test case
+# #grid.num_cells =   96  16   8 # coarse test case
+
+# # Physical domain origin (optional: default 0)
+# grid.domain_origin = 0. 0. 0.
+
+# # Physical domain length -- this is modified by stretching a few lines later
+# grid.domain_length = 1.030224 0.171704 0.085852 # 72\delta 4\delta 6\delta
+
+# # Coordinate system type
+# coordsys.type = cartesian
+# # Coordinate system origin
+# #coordsys.origin = 0. 0. 0.
+# # Coordinate system stretching
+# coordsys.stretch = 3. 1. 3.
+# # Final desired physical domain length
+# #coordsys.physical_length = 3.090672 0.171704 0.257556
+
+# # Location of recycling plane (percent of domain length)
+# # NOTE: this is a grid specific parameter (should be a periodic location)
+# ibc.recycling_plane_location = 0.75
+
+#--------------------------------------------------------------------
+# Grid -- another case -- same as Pullin's case except longer + wider
+#--------------------------------------------------------------------
+
+# # Coarsest grid
+# #grid.num_cells = 1536 256 256 # fine experiment case (Pullin case A4H)
+# #grid.num_cells =  768 128 128 # medium exp. case (Pullin case A4)
+# #grid.num_cells =  384  64  64 # fine test case -- coarse exp. case (A4L)
+# grid.num_cells =  192  32  32 # medium test case
+# #grid.num_cells =   96  16  16 # coarse test case
+
+# # Physical domain origin (optional: default 0)
+# grid.domain_origin = 0. 0. 0.
+
+# # Physical domain length -- this is modified by stretching a few lines later
+# grid.domain_length = 1.030224 0.171704 0.171704 # 72\delta 4\delta 12\delta
+
+# # Coordinate system type
+# coordsys.type = cartesian
+# # Coordinate system origin
+# #coordsys.origin = 0. 0. 0.
+# # Coordinate system stretching
+# coordsys.stretch = 3. 1. 3.
+# # Final desired physical domain length
+# #coordsys.physical_length = 3.090672 0.171704 0.515112
+
+# # Location of recycling plane (percent of domain length)
+# # NOTE: this is a grid specific parameter (should be a periodic location)
+# ibc.recycling_plane_location = 0.75
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = 1.7894E-5
+# fluid.mu = -1
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = 2.5326E-2
+# fluid.K = -1
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 1000000
+
+# Max solution time (optional: default 0., use leading + for delta from t_0)
+sol.max_time = 10.
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-3
+
+# CFL number (optional: default 1.0)
+sol.cfl = 1.0
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# limit.limit_face_values = 1
+
+# Convolution and deconvolution flattening
+# Flattening of convolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.convolution_flattening = 2nd
+
+# Flattening of deconvolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.deconvolution_flattening = 2nd
+
+# Other limiting options set by limit.method
+limit.use_flattening = 0
+#limit.extra_boundary_limiting = 1
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 0
+
+# Artificial viscosity parameter (optional: default 0.3)
+limit.artificial_viscosity_coef = 0.
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+limit.fourth_order_artificial_viscosity_coef = 0.
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = -1 -1 2 2
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 0
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 16
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+#--------------------------------------------------------------------
+# Tagging
+#--------------------------------------------------------------------
+
+# To properly nest level 1, you need
+#   buffer = BF(BF^{-1}(1))/nRef^1/nRef^0 + BF(BF^{-1}(GridBufferSize))/nRef^0
+# where BF is refining and BF^{-1} coarsening by the block factor
+
+tag.level_0 = physical_box -0.3 -0.3 -0.3 2. 0.042926 1.
+tag.level_0 = physical_box 1.150 -0.3 -0.3 1.162 0.065 1.
+tag.level_1 = physical_box -0.3 -0.3 -0.3 2 0.021 1.
+tag.level_1 = physical_box 1.154 -0.3 -0.3 1.165 0.03 1.
+tag.level_2 = physical_box -0.3 -0.3 -0.3 2 0.011 1.
+tag.level_2 = physical_box 1.156 -0.3 -0.3 1.163 0.015 1.

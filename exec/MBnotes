@@ -1,0 +1,20 @@
+Abbrv:
+MBFR - MultiBlockFluxRegister
+MBCS - MultiBlockCoordinateSystem
+LGM  - LevelGridMetrics
+- MBFR takes MBCS from fine and coarse levels.  Annoying to allocate this if
+  the finer level does not exist.
+- LevelGridMetrics should be renamed to AMRLevelGridMetrics.
+- Multiblock operators should be removed from LevelGridMetrics since they are
+  mostly single-level operators.
+- Block domains are done in LGM.  This should be done elsewhere.  The whole
+  concept of problem domain and block domain needs to be revisited.
+- computeMetricTermProductAverage needs to move out of LGM.
+- we should not need LGM in CNSPhysics.cpp
+- Why on earth does LGM need a non-const MBCS factory in define()?
+- LGM should use an RCP to MBCS instead of having a million instantations all
+  over the place.
+- MOLUtilities - most of these should be constant
+- Box should be annotated to store the parent block.  It is too difficult,
+  nevermind inefficient, to try to recover a disjoint box and use this to
+  find the encompassing block.

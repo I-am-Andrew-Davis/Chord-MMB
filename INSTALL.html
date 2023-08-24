@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>INSTALL</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+</head>
+<body>
+<h1 id="overview">Overview</h1>
+<p>Chord is used to solve the compressible reacting Navier-Stokes equations using solution-adaptive mesh refinement. Chord is based on the Chombo parallel AMR library, which itself has prerequisites of HDF5 and CGNS as input/output libraries. The build system is in Chombo and both Chord and Chombo libraries are built at the same time.</p>
+<p>We generally recommend compiling and installing serial and parallel versions of HDF5 and CGNS from source. These are the only prerequisites.</p>
+<h1 id="obtaining-the-source-code">Obtaining the source code</h1>
+<p>Make a top-level directory that will contain both Chord and Chombo</p>
+<pre><code>&gt;$ mkdir $HOME/chombo
+&gt;$ cd chombo</code></pre>
+<p>The source code is hosted at https://cfd-repo.engr.colostate.edu/ in mercurial repositories. To clone the source (substitute username for your own):</p>
+<pre><code>&gt;$ hg clone https://username@cfd-repo.engr.colostate.edu/hgroot/chombo/Chombo
+&gt;$ hg clone https://username@cfd-repo.engr.colostate.edu/hgroot/chombo/Chord
+&gt;$ cd Chombo
+&gt;$ hg update MMB
+&gt;$ cd ../Chord
+&gt;$ hg update MMB
+&gt;$ cd ..</code></pre>
+<p>To obtain the source codes and install scripts for HDF5 and CGNS, either visit the site https://cfd-repo.engr.colostate.edu/share/iolib_local.tar.bz2 in a web browser or from the command line (note, this file is 11MB in size):</p>
+<pre><code>&gt;$ wget https://cfd-repo.engr.colostate.edu/share/iolib_local.tar.bz2</code></pre>
+<p>These instructions are in $HOME/chombo/Chord/INSTALL.md</p>
+<h1 id="system-prerequisites">System prerequisites</h1>
+<p>Standard build tools are required for the system, especially a compiler and MPI library. On a Debian system, we install:</p>
+<pre><code> &gt;$ apt install build-essential liblapack-dev doxygen csh autoconf mercurial gcc g++ cpp gfortran gdb valgrind cmake cmake-curses-gui libopenmpi-dev openmpi-bin libtool automake hwloc libhwloc-dev numactl libnuma-dev zlib1g-dev </code></pre>
+<p>Similar packages should be available for any distribution. Chord/Chombo should work with any MPI implementation. Also consider installing clang++ as the C++ compiler if that is your preference (we normally use g++).</p>
+<h1 id="installing-hdf5-and-cgns">Installing HDF5 and CGNS</h1>
+<p>HDF5 and CGNS can be installed either to /usr/local (if you have sufficient write privileges) or to $HOME/local (otherwise). We recommend installing both libraries from source except on supercomputers where HDF5 is probably already installed and accessible via environment-modules or a similar technology. We do not recommend using source packages from a distribution.</p>
+<h2 id="installing-to-a-local-file-system">Installing to a local file system</h2>
+<pre><code>&gt;$ tar -xvjf iolib_local.tar.bz2
+&gt;$ cd iolib_local/scripts</code></pre>
+<p>Use an editor to modify the file install_local.sh</p>
+<pre><code>&gt;$ emacs install_local.sh</code></pre>
+<p>The file is currently set up for Debian10 but should work easily on any Linux OS. Adjust ‘gcc_version’, ‘mpiccompiler’, ‘mpitag’, ‘cctag’, as desired. Set ‘installdir’ to your preferred installation directory. It is currently set to $HOME/local, i.e., a directory name ‘local’ in your home directory. To install for the system, change this to /usr/local, but you will need write permissions or must run the script as root. Make sure the install directory exists. E.g.,</p>
+<pre><code>&gt;$ mkdir $HOME/local</code></pre>
+<p>The srcdir variable must point to the source libraries. If you have been following this guide closely, they are in ‘$HOME/chombo/iolib_local/src’</p>
+<p>By default, the libraries are built directly in system memory for speed. To alter the build location, change the variable ‘scratchdir’ to point to e.g., /tmp.</p>
+<p>By default, CGNS tools are built as they can be very useful for inspecting and modifying CGNS files. However, additional dependencies are required to use graphics:</p>
+<pre><code>&gt;$ apt install libxi-dev libxmu-dev freeglut3-dev libf2c2-dev libxt-dev tk-dev</code></pre>
+<p>If you do not have these packages, and do not have permission to install them, you can disable the building of CGNS tools which makes the compilation much more straightforward. Do this on line 117 of the script by setting -DCGNS_BUILD_CGNSTOOLS:BOOL= to OFF. Note, do not build CGNS tools in parallel.</p>
+<p>Run the script to build and install HDF5 and CGNS</p>
+<pre><code>&gt;$ ./install_local.sh</code></pre>
+<p>It will take some time, up to 10 min. The script cleans up after itself, but only if successful. If not, be sure to manually remove the build directory (given by the variable ‘builddir’. Normally this is</p>
+<pre><code>&gt;$ rm -rf /dev/shm/install_tmp</code></pre>
+<p>If you have issues, first try disabling the building of CGNS tools. Check if you have szip, serial hdf5, serial cgns, parallel hdf5, and parallel hdf5. What failed might guide you on missing requirements. Feel free to reach out if you have difficulties.</p>
+<p>To check the libraries, go to their location and use ‘ldd’ to check that all dependencies on libraries are available. You should see something like the following:</p>
+<pre><code>&gt;$ ldd $HOME/local/cgns/4.2.0_gcc-8.3.0/lib/libcgns.so
+    linux-vdso.so.1 (0x00007ffef49fd000)
+    libhdf5.so.200 =&gt; /usr/local/hdf5/1.12.0_gcc-8.3.0/lib/libhdf5.so.200 (0x00007f803a71d000)
+    libsz.so.2 =&gt; /usr/local/szip/2.1.1/lib/libsz.so.2 (0x00007f803a708000)
+    libz.so.1 =&gt; /lib/x86_64-linux-gnu/libz.so.1 (0x00007f803a4ba000)
+    libdl.so.2 =&gt; /lib/x86_64-linux-gnu/libdl.so.2 (0x00007f803a4b5000)
+    libm.so.6 =&gt; /lib/x86_64-linux-gnu/libm.so.6 (0x00007f803a332000)
+    libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.6 (0x00007f803a16f000)
+    /lib64/ld-linux-x86-64.so.2 (0x00007f803ac18000)
+
+&gt;$ ldd $HOME/local/cgns/4.2.0_openmpi_gcc-8.3.0/lib/libcgns.so
+    linux-vdso.so.1 (0x00007ffd363ec000)
+    libhdf5.so.200 =&gt; /usr/local/hdf5/1.12.0_gcc-8.3.0/lib/libhdf5.so.200 (0x00007f06f1257000)
+    libsz.so.2 =&gt; /usr/local/szip/2.1.1/lib/libsz.so.2 (0x00007f06f1242000)
+    libz.so.1 =&gt; /lib/x86_64-linux-gnu/libz.so.1 (0x00007f06f0ff4000)
+    libdl.so.2 =&gt; /lib/x86_64-linux-gnu/libdl.so.2 (0x00007f06f0fef000)
+    libm.so.6 =&gt; /lib/x86_64-linux-gnu/libm.so.6 (0x00007f06f0e6c000)
+    libmpi.so.40 =&gt; /lib/x86_64-linux-gnu/libmpi.so.40 (0x00007f06f0d61000)
+    libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.6 (0x00007f06f0ba0000)
+    /lib64/ld-linux-x86-64.so.2 (0x00007f06f175b000)
+    libopen-rte.so.40 =&gt; /lib/x86_64-linux-gnu/libopen-rte.so.40 (0x00007f06f0ae8000)
+    libopen-pal.so.40 =&gt; /lib/x86_64-linux-gnu/libopen-pal.so.40 (0x00007f06f0a3b000)
+    librt.so.1 =&gt; /lib/x86_64-linux-gnu/librt.so.1 (0x00007f06f0a31000)
+    libutil.so.1 =&gt; /lib/x86_64-linux-gnu/libutil.so.1 (0x00007f06f0a2c000)
+    libhwloc.so.5 =&gt; /lib/x86_64-linux-gnu/libhwloc.so.5 (0x00007f06f09e8000)
+    libevent-2.1.so.6 =&gt; /lib/x86_64-linux-gnu/libevent-2.1.so.6 (0x00007f06f0792000)
+    libevent_pthreads-2.1.so.6 =&gt; /lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.6 (0x00007f06f058f000)
+    libpthread.so.0 =&gt; /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007f06f056e000)
+    libnuma.so.1 =&gt; /lib/x86_64-linux-gnu/libnuma.so.1 (0x00007f06f0560000)
+    libltdl.so.7 =&gt; /lib/x86_64-linux-gnu/libltdl.so.7 (0x00007f06f0553000)</code></pre>
+<p>Note above that the hdf5 libraries are the ones we installed and not from a system location.</p>
+<h1 id="installing-visit">Installing VisIt</h1>
+<p>VisIt is required to view the results. VisIt is a free and open-source software available at https://visit-dav.github.io/visit-website/. While it can be built from source, we recommend installing the prebuilt binaries found on the DOWNLOADS-&gt;RELEASES tab. VisIt has customizations for Chombo output. To use these, launch VisIt and then select ‘Options-&gt;Host profiles and configuration setup…’ In the pop-up window, under ‘Select default configuration’, choose ‘Chombo Users’. This will simply add some useful macros and not significantly alter the way VisIt behaves. Select the ‘Install’ button and these macros should be available on the left pane the next time you start VisIt.</p>
+<h1 id="configuring-chombo-and-chord">Configuring Chombo and Chord</h1>
+<p>Chombo/lib/mk/Make.defs.local is the configuration that governs all options for building Chombo and Chord. The build is done in place and combinations of optimized/debug, serial/parallel, 2-D/3-D can co-exist without conflict.</p>
+<h2 id="hardware">Hardware</h2>
+<p>However, there is an optional step to detect hardware which permits some optimizations. Run configure on the machine you will use for computation:</p>
+<pre><code>&gt;$ cd $HOME/chombo/Chombo
+&gt;$ ./configure</code></pre>
+<p>All results from hardware detection are placed in the file Chombo/lib/src/BaseTools/CH_config.H. Note that configure does not do any software configuration and you only need to run it once per system.</p>
+<h2 id="software">Software</h2>
+<p>Start by using one of our templates for machine configuration.</p>
+<pre><code>&gt;$ cd $HOME/chombo/Chombo/lib/mk
+&gt;$ cp local/Make.defs.CSUlocal ./Make.defs.local</code></pre>
+<p>Make.defs.local is where you can select the compiler and many other options. It should mostly be set up correctly. However, let’s double check that the locations of the HDF5 and CGNS libraries are defined correctly. About halfway down the file, you will see lines like:</p>
+<pre><code>_szip_root=${HOME}/local/szip/2.1.1
+ifeq ($(MPI),TRUE)
+  _hdf_root=${HOME}/local/hdf5/1.12.0_openmpi_gcc-8.3.0
+  HDFMPIINCFLAGS = -I$(_hdf_root)/include
+  HDFMPILIBFLAGS = -L$(_hdf_root)/lib -lhdf5 -L$(_szip_root)/lib -lsz -lz
+else
+  _hdf_root=${HOME}/local/hdf5/1.12.0_gcc-8.3.0
+endif</code></pre>
+<p>and</p>
+<pre><code>ifeq ($(USE_CGNS),TRUE)
+  ifeq ($(MPI),TRUE)
+    _cgns_root=${HOME}/local/cgns/4.2.0_openmpi_gcc-8.3.0
+  else
+    _cgns_root=${HOME}/local/cgns/4.2.0_gcc-8.3.0
+  endif
+  CGNSINCFLAGS = -I$(_cgns_root)/include
+  CGNSLIBFLAGS = -L$(_cgns_root)/lib -lcgns
+  XTRALDFLAGS += -Wl,-rpath,$(_cgns_root)/lib
+endif</code></pre>
+<p>Make sure _hdf_root points to your parallel (if MPI=TRUE) or serial hdf5 directories that you just installed, and similar for _cgns_root. Also check _szip_root. The location you set should have the include and lib directories. For example, if I type</p>
+<pre><code>&gt;$ cd ${HOME}/local/hdf5/1.12.0_openmpi_gcc-8.3.0
+&gt;$ ls
+bin  hdf5_config.log  include  lib  share </code></pre>
+<h1 id="building-chombo-and-chord">Building Chombo and Chord</h1>
+<p>All building is done from within Chord; Chombo libraries are automatically built.</p>
+<h2 id="serial-build">Serial build</h2>
+<pre><code>&gt;$ cd ${HOME}/chombo/Chord/exec
+&gt;$ make -j16 example</code></pre>
+<p>The ‘-j16’ performs a parallel build. We suggest using 2-to-3 times the number of physical processing cores available on your computer. E.g., if the machine has 6 CPU cores, use -j12 or -j18.</p>
+<p>Check if you have an executable.</p>
+<pre><code>&gt;$ ls *.ex
+chord2d.Linux.64.g++.gfortran.DEBUG.OPT.ex</code></pre>
+<p>Note that configuration options (compiler.DEBUG.OPT) are included in the file name. If you do not have an executable, try running the same make command again (sometimes one has to run it twice). Next, check that the executable is using your HDF5 and CGNS libraries:</p>
+<pre><code>&gt;$ ldd chord2d.Linux.64.g++.gfortran.DEBUG.OPT.ex
+    linux-vdso.so.1 (0x00007ffe558ee000)
+    libcgns.so.4.2 =&gt; /home/sguzik/local/cgns/4.2.0_gcc-8.3.0/lib/libcgns.so.4.2 (0x00007ffa50ea9000)
+    libhdf5.so.200 =&gt; /home/sguzik/local/hdf5/1.12.0_gcc-8.3.0/lib/libhdf5.so.200 (0x00007ffa50a80000)
+    libsz.so.2 =&gt; /home/sguzik/local/szip/2.1.1/lib/libsz.so.2 (0x00007ffa50a6b000)
+    libz.so.1 =&gt; /lib/x86_64-linux-gnu/libz.so.1 (0x00007ffa5081d000)
+    ...</code></pre>
+<p>Here, you can see that libcgns.so.* and libhdf5.so.* are pointing to the local install I did to my home directory.</p>
+<p>Once you have an executable, try a test problem.</p>
+<pre><code>&gt;$ ./chord2d.Linux.64.g++.gfortran.DEBUG.OPT.ex AMRAdvectionCube.inputs</code></pre>
+<p>That should run fairly fast (about 2 min), and place plot files in the plot directory. Open the plot files in VisIt to check the results. Launch VisIt and then select ‘File-&gt;Open file…’. From the pop-up window, navigate to Chord/exec/plot and from the right pane, select the complete set of ’gaussianAdvec.plot.*.2d.hdf5’ files. Under ‘Plots’, select the icon that has overlapping circles. Cleck the box next to ‘Mesh’ to enable all levels and then the Apply button followed by the Dismiss button. Click the ‘Boxes’ button under Macros (lower left pane). Also click the button labeled ‘Mapping on’ to displace the grid to match physical space. Next click the ‘Draw’ button under ‘Plots’ to make those changes.</p>
+<p>Finally, click the play button under ‘Time’ to see how the solution evolves. You can also show the mesh by highlighting the ‘Mesh’ plot and clicking Hide/Show.</p>
+<h2 id="parallel-build">Parallel build</h2>
+<p>Now let’s attempt to run Chord in parallel. The standard configuration options are:</p>
+<pre><code>DIM=[2|3]
+OPT=[TRUE|FALSE|HIGH]
+DEBUG=[TRUE|FALSE]
+MPI=[TRUE|FALSE]</code></pre>
+<p>This build will be in parallel and have full optimization</p>
+<pre><code>&gt;$ make -j16 MPI=TRUE OPT=HIGH DEBUG=FALSE example</code></pre>
+<p>As before, check for the executable and that it is using the proper parallel HDF5 and CGNS libraries.</p>
+<pre><code>&gt;$ ls *.ex
+chord2d.Linux.64.g++.gfortran.DEBUG.OPT.ex
+chord2d.Linux.64.mpicxx.gfortran.OPTHIGH.MPI.ex
+
+&gt;$ ldd chord2d.Linux.64.mpicxx.gfortran.OPTHIGH.MPI.ex
+    linux-vdso.so.1 (0x00007ffeb39ac000)
+    libcgns.so.4.2 =&gt; /home/sguzik/local/cgns/4.2.0_openmpi_gcc-8.3.0/lib/libcgns.so.4.2 (0x00007efcc7a56000)
+    libhdf5.so.200 =&gt; /home/sguzik/local/hdf5/1.12.0_openmpi_gcc-8.3.0/lib/libhdf5.so.200 (0x00007efcc7602000)
+    libsz.so.2 =&gt; /home/sguzik/local/szip/2.1.1/lib/libsz.so.2 (0x00007efcc75ed000)
+    libz.so.1 =&gt; /lib/x86_64-linux-gnu/libz.so.1 (0x00007efcc739f000)
+    ...</code></pre>
+<p>This time, we will run the double-Mach reflection problem.</p>
+<pre><code>&gt;$ mpirun -np 6 chord2d.Linux.64.mpicxx.gfortran.OPTHIGH.MPI.ex AMRDoubleMachReflection.inputs</code></pre>
+<p>You will not see any output while the parallel job is running. Instead, each processor will be writing independent output to a pout.* file where * is the processor number. You can open a new terminal, navigate to the ‘exec’ directory, and view any pout.* file.</p>
+<pre><code>&gt;$ cd $HOME/chombo/Chord/exec
+&gt;$ tail -f pout.0</code></pre>
+<p>The run should take only 30 sec. View the plot files in VisIt using the same techniques. If curious, open the file ‘AMRDoubleMachReflection.inputs’ and change amr.max_level from 2 to 3. This will produce much more detailed physics but also take much longer.</p>
+</body>
+</html>

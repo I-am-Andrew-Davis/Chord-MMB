@@ -1,0 +1,166 @@
+C       _______               __
+C      / ___/ /  ___  __  ___/ /
+C     / /__/ _ \/ _ \/ _\/ _  /
+C     \___/_//_/\___/_/  \_._/
+C     Please refer to Copyright.txt, in Chord's root directory.
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+
+c ----------------------------------------------------------------------
+c  Sets an initial uniform conservative solution on the grid
+c
+c  U                <=  Conservative momentum equation
+c  box               => Where to initialize/solve
+c  X                 => Physical locations normal to the wall
+c  time              => Time
+c  h                 => Height of domain
+c  nu                => Kinematic viscosity
+c  wallspeed         => Speed of moving wall
+c  rho               => Freestream density
+c  movWall           => 0 if lower wall is moving, 1 if upper wall is moving
+c  nmax              => Maximum number of iterations to solve on
+c  momcomp           => Momentum component corresponding to the flow direction
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCTRANSIENTCOUETTEEXACTSOL(
+     &     CHF_FRA[U],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA1[X],
+     &     CHF_CONST_REAL[time],
+     &     CHF_CONST_REAL[h],
+     &     CHF_CONST_REAL[nu],
+     &     CHF_CONST_REAL[wallspeed],
+     &     CHF_CONST_REAL[rho],
+     &     CHF_CONST_REAL[pres],
+     &     CHF_CONST_REAL[gammav],
+     &     CHF_CONST_INT[movWall],
+     &     CHF_CONST_INT[nmax],
+     &     CHF_CONST_INT[momcomp],
+     &     CHF_CONST_INT[engcomp])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer n
+      real_t sum, steadyp, y, vel, cn
+
+      CHF_AUTOMULTIDO[box;i]
+         y = X(CHF_AUTOIX[i])
+         if(movWall .eq. 1) then
+            y = h - y
+         endif
+         steadyp = one - y/h
+         sum = zero
+         do n = 1, nmax
+            cn = n*Pi/h
+            sum = sum + sin(cn*y)*exp(-nu*time*cn**2)/(n*Pi)
+         enddo
+         sum = steadyp - two*sum
+         vel = wallspeed*sum
+         U(CHF_AUTOIX[i],momcomp) = rho*vel
+         U(CHF_AUTOIX[i],engcomp) = pres/(gammav - one) + rho*vel**2
+      CHF_ENDDO
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Sets an initial uniform conservative solution on the grid
+c
+c  U                <=  Conservative momentum equation
+c  box               => Where to initialize/solve
+c  X                 => Physical locations normal to the wall
+c  time              => Time
+c  h                 => Height of domain
+c  nu                => Kinematic viscosity
+c  wallspeed         => Speed of moving wall
+c  movWall           => 0 if lower wall is moving, 1 if upper wall is moving
+c  nmax              => Maximum number of iterations to solve on
+c  momcomp           => Momentum component corresponding to the flow direction
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCTRANSIENTCOUETTEEXACTSOLPRIM(
+     &     CHF_FRA[W],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA1[X],
+     &     CHF_CONST_REAL[time],
+     &     CHF_CONST_REAL[h],
+     &     CHF_CONST_REAL[nu],
+     &     CHF_CONST_REAL[wallspeed],
+     &     CHF_CONST_INT[movWall],
+     &     CHF_CONST_INT[nmax],
+     &     CHF_CONST_INT[momcomp])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer n
+      real_t sum, steadyp, y, vel, cn
+
+      CHF_AUTOMULTIDO[box;i]
+         y = X(CHF_AUTOIX[i])
+         if(movWall .eq. 1) then
+            y = h - y
+         endif
+         steadyp = one - y/h
+         sum = zero
+         do n = 1, nmax
+            cn = n*Pi/h
+            sum = sum + sin(cn*y)*exp(-nu*time*cn**2)/(n*Pi)
+         enddo
+         sum = steadyp - two*sum
+         vel = wallspeed*sum
+         W(CHF_AUTOIX[i],momcomp) = vel
+      CHF_ENDDO
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Solves for the data to output the exact solution to a .dat file
+c
+c  U                <=  Conservative momentum equation
+c  box               => Where to initialize/solve
+c  X                 => Physical locations normal to the wall
+c  time              => Time
+c  h                 => Height of domain
+c  nu                => Kinematic viscosity
+c  wallspeed         => Speed of moving wall
+c  rho               => Freestream density
+c  nmax              => Maximum number of iterations to solve on
+c  momcomp           => Momentum component corresponding to the flow direction
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCEXACTSOLOUTPUT(
+     &     CHF_VR[U],
+     &     CHF_CONST_VR[yvec],
+     &     CHF_CONST_REAL[time],
+     &     CHF_CONST_REAL[h],
+     &     CHF_CONST_REAL[nu],
+     &     CHF_CONST_REAL[wallspeed],
+     &     CHF_CONST_INT[movWall],
+     &     CHF_CONST_INT[nmax])
+
+#include "EosCommon.fh"
+
+      integer n, ix, len
+      real_t sum, steadyp, y, vel, cn
+
+      len = size(U)
+      do ix = 0,len-1
+         y = yvec(ix)
+         if(movWall .eq. 1) then
+            y = h - y
+         endif
+         steadyp = one - y/h
+         sum = zero
+         do n = 1, nmax
+            cn = n*Pi/h
+            sum = sum + sin(cn*y)*exp(-nu*time*cn**2)/(n*Pi)
+         enddo
+         sum = steadyp - two*sum
+         U(ix) = wallspeed*sum
+      enddo
+      return
+      end

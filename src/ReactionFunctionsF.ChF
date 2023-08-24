@@ -1,0 +1,782 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+c     ----------------------------------------------------------------------
+c     EosCommon is set by CNSIBC::CNSIBC using Fortran kernel
+c     CNSIBCSETCOMMONREF from file CNSIBCF.ChF
+c     ----------------------------------------------------------------------
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+
+c     ----------------------------------------------------------------------
+c     FIXME: Solved in an MD_BOXLOOP now
+c     Computes reaction source term per unit mass, or rho*omega
+c     This function is only when there are no third-body or pressure
+c     dependent reactions
+c     
+c     RW               <=  Cell-centered rho*omega
+c     Wc                => Cell-centered primitive values
+c     box               => Box defining where to compute temperature
+c     tcutoff           => If T < tcutoff, reaction source is set to 0
+c     tdiff             => Difference in T to have to resolve G values
+c     rcomp             => Density index for primitive variables
+c     tcomp             => Temperature index for primitive variables
+c     wcompstart        => First primitive species component
+c     numspecies        => Number of species
+c     nrct              => Number of reactions
+c     ntbrct            => Number of third body reactions
+c     numrects          => Number of reactants per reaction
+c     numprods          => Number of products per reaction
+c     EAR               => Vector of the activation energy/R
+c     preAF             => Forward pre-exponential coefficients
+c     betai             => Temperature exponent
+c     nup               => Stoichiometric coefficients for reactants
+c     nupp              => Stoichiometric coefficients for products
+c     reactref          => Ref containing corresponding reactant species
+c     prodref           => Ref containing corresponding product species
+c     thbody            => Int to indicate if the reaction is third body
+c     alphai            => Third body reaction coefficients
+c     revreact          => Vector indicating reaction is reversible or not
+c     molmass           => Vector of molar mass in (kg/mol)
+c     a1-7L             => Coefficients for h and s for 200 < T < 1000
+c     a1-7H             => Coefficients for h and s for 1000 < T < 6000
+c     Rinp              => Universal gas constant
+c     mintau            => Minimum reaction characteristic time
+c     ----------------------------------------------------------------------
+
+      subroutine SOLVETBOMEGA(
+     &     CHF_FRA[RW],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_BOX[box],
+     &     CHF_CONST_REAL[tcutoff],
+     &     CHF_CONST_REAL[tdiff],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_INT[nrct],
+     &     CHF_CONST_INT[ntbrct],
+     &     CHF_CONST_VI[numrects],
+     &     CHF_CONST_VI[numprods],
+     &     CHF_CONST_VR[EAR],
+     &     CHF_CONST_VR[preAF],
+     &     CHF_CONST_VR[betai],
+     &     CHF_CONST_VR[nup],
+     &     CHF_CONST_VR[nupp],
+     &     CHF_CONST_VI[reactref],
+     &     CHF_CONST_VI[prodref],
+     &     CHF_CONST_VI[revreact],
+     &     CHF_CONST_VI[thbody],
+     &     CHF_CONST_VR[alphai],
+     &     CHF_CONST_VR[molmass],
+     &     CHF_CONST_VR[a1L],
+     &     CHF_CONST_VR[a2L],
+     &     CHF_CONST_VR[a3L],
+     &     CHF_CONST_VR[a4L],
+     &     CHF_CONST_VR[a5L],
+     &     CHF_CONST_VR[a6L],
+     &     CHF_CONST_VR[a7L],
+     &     CHF_CONST_VR[b1L],
+     &     CHF_CONST_VR[b2L],
+     &     CHF_CONST_VR[a1H],
+     &     CHF_CONST_VR[a2H],
+     &     CHF_CONST_VR[a3H],
+     &     CHF_CONST_VR[a4H],
+     &     CHF_CONST_VR[a5H],
+     &     CHF_CONST_VR[a6H],
+     &     CHF_CONST_VR[a7H],
+     &     CHF_CONST_VR[b1H],
+     &     CHF_CONST_VR[b2H],
+     &     CHF_CONST_REAL[Rinp],
+     &     CHF_REAL[mintau])
+
+      integer CHF_AUTODECL[i]
+      integer comp, offcomp, scomp, spcomp1, spcomp2
+      integer rctcomp, nucomp, curTB, cnumr, cnump, loopsp
+      real_t rho, T, keq, sumtbval, Tprev
+      real_t spec(0:numspecies-1), ffwd, kfwd, fback, kbkwd
+      real_t gfval(0:numspecies-1), patmR, dsmdh, sumnuval
+      real_t destrate(0:numspecies-1), Tinv, Tlog, bkconst, factor1
+      real_t mmass1(0:numspecies-1), mmass2(0:numspecies-1)
+
+c     For do loops that only iterate over the solved species
+      loopsp = numspecies - 1
+c     Previous temperature
+      Tprev = zero
+c     P_atm = 101325 Pa but we mulitply by 10 to convert to cgs and divide by R
+      patmR = 101325.0d0*ten/(Rinp*1.0E7)
+      factor1 = one/twenty
+c     Faster to calculate these beforehand
+      do comp = 0, loopsp
+         mmass1(comp) = 1E-6/molmass(comp)
+         mmass2(comp) = 1E6*molmass(comp)
+      enddo
+      CHF_AUTOMULTIDO[box;i]
+         curTB = 0
+         rho = Wc(CHF_AUTOIX[i], rcomp)
+         T = Wc(CHF_AUTOIX[i], tcomp)
+c     If T < tcutoff, leave the reaction set to 0
+         if(T .lt. tcutoff) then
+            cycle
+         endif
+         Tinv = one/T
+         Tlog = log(T)
+         bkconst = patmR*Tinv
+         do comp = 0, loopsp
+            scomp = wcompstart + comp
+            spec(comp) = min(one,max(zero,Wc(CHF_AUTOIX[i],scomp)))
+     &           *mmass1(comp)*rho
+            destrate(comp) = zero
+         enddo
+c     Only re-solve for H and S values if the T differs by more than tdiff deg
+         if(abs(T - Tprev) > tdiff) then
+            call SETCOEFFS()
+            Tprev = T
+         endif
+c     Loop over number of reactions
+         do rctcomp = 0, nrct - 1
+            cnumr = numrects(rctcomp) - 1
+            cnump = numprods(rctcomp) - 1
+c     Loop over both reactants and products
+            nucomp = 3*rctcomp
+c     Calculate k_fwd, the forward reaction rate
+            kfwd = preAF(rctcomp)*(T**betai(rctcomp))*
+     &           exp(-EAR(rctcomp)*Tinv)
+c     Calculate the third body sum
+            sumtbval = one
+            if(thbody(rctcomp) .eq. 1) then
+               sumtbval = zero
+               call CALCTHIRDBODY()
+               curTB = curTB + 1
+            endif
+            ffwd = one
+            fback = one
+            if(revreact(rctcomp) .eq. 1) then
+               kbkwd = zero
+c     Retrieve the number corresponding to the offcomp # reactant species
+               do offcomp = nucomp, nucomp+cnumr
+                  spcomp1 = reactref(offcomp)
+                  ffwd = ffwd*spec(spcomp1)**nup(offcomp)
+               enddo
+            else
+               dsmdh = zero
+               sumnuval = zero
+               do offcomp = nucomp, nucomp+cnumr
+                  spcomp1 = reactref(offcomp)
+                  ffwd = ffwd*spec(spcomp1)**nup(offcomp)
+                  sumnuval = sumnuval - nup(offcomp)
+                  dsmdh = dsmdh - nup(offcomp)*gfval(spcomp1)
+               enddo
+c     Retrieve the number corresponding to the offcomp # product species
+               do offcomp = nucomp, nucomp+cnump
+                  spcomp2 = prodref(offcomp)
+                  fback = fback*spec(spcomp2)**nupp(offcomp)
+                  sumnuval = sumnuval + nupp(offcomp)
+                  dsmdh = dsmdh + nupp(offcomp)*gfval(spcomp2)
+               enddo
+               keq = exp(-dsmdh*Tinv)*bkconst**sumnuval
+               kbkwd = sumtbval*kfwd*fback/keq
+            endif
+c     Multipy k_fwd by prod(x_n)
+            kfwd = sumtbval*kfwd*ffwd
+            do offcomp = nucomp, nucomp+cnumr
+               spcomp1 = reactref(offcomp)
+               RW(CHF_AUTOIX[i], spcomp1) = RW(CHF_AUTOIX[i], spcomp1)-
+     &              mmass2(spcomp1)*nup(offcomp)*(kfwd - kbkwd)
+               destrate(spcomp1) = destrate(spcomp1)+nup(offcomp)*kfwd
+            enddo
+            do offcomp = nucomp, nucomp+cnump
+               spcomp2 = prodref(offcomp)
+               RW(CHF_AUTOIX[i], spcomp2) = RW(CHF_AUTOIX[i], spcomp2)+
+     &              mmass2(spcomp2)*nupp(offcomp)*(kfwd - kbkwd)
+               destrate(spcomp2) = destrate(spcomp2)+nupp(offcomp)*kbkwd
+            enddo
+         enddo
+         call CALCDT()
+      CHF_ENDDO
+
+      return
+      
+      contains
+
+      subroutine CALCTHIRDBODY()
+      integer tbcomp
+      do comp = 0, loopsp
+c     Third-body component number
+         tbcomp = comp*ntbrct + curTB
+         sumtbval = sumtbval + alphai(tbcomp)*spec(comp)
+      enddo
+      end subroutine
+
+      subroutine SETCOEFFS()
+      real_t a1, a2, a3, a4, a5, a6, a7, b1, b2
+      if(T .ge. 1000.0d0) then
+         do comp = 0, loopsp
+            a1 = a1H(comp)
+            a2 = a2H(comp)
+            a3 = a3H(comp)
+            a4 = a4H(comp)
+            a5 = a5H(comp)
+            a6 = a6H(comp)
+            a7 = a7H(comp)
+            b1 = b1H(comp)
+            b2 = b2H(comp)
+            gfval(comp) = b1 + a2 - half*a1*Tinv + Tlog*(-a3*T + a2) +
+     &           T*(a3 - b2 - T*(a4*half + T*(a5*sixth +
+     &           T*(a6*twelfth + T*a7*factor1))))
+         enddo
+      else
+         do comp = 0, loopsp
+            a1 = a1L(comp)
+            a2 = a2L(comp)
+            a3 = a3L(comp)
+            a4 = a4L(comp)
+            a5 = a5L(comp)
+            a6 = a6L(comp)
+            a7 = a7L(comp)
+            b1 = b1L(comp)
+            b2 = b2L(comp)
+            gfval(comp) = b1 + a2 - half*a1*Tinv + Tlog*(-a3*T + a2) +
+     &           T*(a3 - b2 - T*(a4*half + T*(a5*sixth +
+     &           T*(a6*twelfth + T*a7*factor1))))
+         enddo
+      endif
+      end subroutine
+
+      subroutine CALCDT()
+      real_t tempdt
+      do comp = 0, loopsp
+         tempdt = spec(comp)/destrate(comp)
+         if(tempdt .lt. mintau .and. tempdt .gt. zero) then
+            mintau = tempdt
+         endif
+      enddo
+      end subroutine
+      
+      end
+
+c     ----------------------------------------------------------------------
+c     Computes the reaction rate for specified reverse reaction rate parameters
+c     
+c     KfwdFab          <=  Cell-centered forward reaction rates
+c     KbkwdFab         <=  Cell-centered backward reaction rates for REV
+c     Wc                => Cell-centered primitive values
+c     box               => Box defining where to compute temperature
+c     tcutoff           => If T < tcutoff, reaction source is set to 0
+c     tcomp             => Temperature index for primitive variables
+c     nrct              => Number of reactions
+c     EAR               => Vector of the activation energy/R
+c     preAF             => Forward pre-exponential coefficients
+c     betai             => Temperature exponent
+c     alphai            => Third body reaction coefficients
+c     REVEAR, REVpreAB, REVbetai
+c                       => The EAR, preAR, and betai for REV reactions
+c     molmass           => Vector of molar mass in (kg/mol)
+c     ----------------------------------------------------------------------
+
+      subroutine SOLVEREVK(
+     &     CHF_FRA[KfwdFab],
+     &     CHF_FRA[KbkwdFab],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_BOX[box],
+     &     CHF_CONST_REAL[tcutoff],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[nrct],
+     &     CHF_CONST_VI[revreact],
+     &     CHF_CONST_VR[EAR],
+     &     CHF_CONST_VR[preAF],
+     &     CHF_CONST_VR[betai],
+     &     CHF_CONST_VR[REVEAR],
+     &     CHF_CONST_VR[REVpreAB],
+     &     CHF_CONST_VR[REVbetai])
+
+      integer CHF_AUTODECL[i]
+      integer rctcomp, curREV
+      real_t T, Tinv
+
+      CHF_AUTOMULTIDO[box;i]
+         curREV = 0
+         T = Wc(CHF_AUTOIX[i], tcomp)
+c     If T < tcutoff, leave the reaction set to 0
+         if(T .lt. tcutoff) then
+            cycle
+         endif
+         Tinv = one/T
+c     Loop over all reactions
+         do rctcomp = 0, nrct - 1
+            KfwdFab(CHF_AUTOIX[i],rctcomp) = preAF(rctcomp)*
+     &           (T**betai(rctcomp))*exp(-EAR(rctcomp)*Tinv)
+c     If reaction is reversible
+            if(revreact(rctcomp) .eq. -1) then
+               KbkwdFab(CHF_AUTOIX[i],curREV) = REVpreAB(curREV)*
+     &              (T**REVbetai(curREV))*exp(-REVEAR(curREV)*Tinv)
+               curREV = curREV + 1
+            endif
+         enddo
+      CHF_ENDDO
+
+      return
+
+      end   
+
+c     ----------------------------------------------------------------------
+c     Computes the reaction rate for reactions with pressure-dependence
+c
+c     KfwdFab           => Contains the A_f*T^beta*exp(-E/(R*T))
+c     KfwdFab          <=  Cell-centered forward reaction rates
+c     Wc                => Cell-centered primitive values
+c     box               => Box defining where to compute temperature
+c     tcutoff           => If T < tcutoff, reaction source is set to 0
+c     rcomp             => Density index for primitive variables
+c     tcomp             => Temperature index for primitive variables
+c     wcompstart        => First primitive species component
+c     numspecies        => Number of species
+c     nrct              => Number of reactions
+c     ntbrct            => Number of third body reactions
+c     nprrct            => Number of pressure-dependent reactions
+c     EAR               => Vector of the activation energy/R
+c     preAF             => Forward pre-exponential coefficients
+c     betai             => Temperature exponent
+c     alphai            => Third body reaction coefficients
+c     prdep             => Vector of integers, for each reaction we label
+c                          0 - Not pressure dependent
+c                          1 - Lindemann pressure-dependent reaction
+c                          2 - Troe pressure-dependent reaction
+c                          3 - SRI pressure-dependent reaction
+c                          For 1, 2, or 3, we have bimolecular reactions
+c                          For -1, -2, or -3 we have unimolecular reactions
+c     PREAR, PRpreAF, PRbetai
+c                       => Same as EAR, preAF, and betai only for PR reactions
+c     Fcval             => Lindemann fit number
+c     TroeAlpha         => Alpha values for the Troe method for PR reactions
+c     TroeTS            => T* values for the Troe method for PR reactions
+c     TroeTS2           => T** values
+c     TroeTS3           => T*** values
+c     SRIa-e            => Coefficients for SRI reactions
+c     molmass           => Vector of molar mass in (kg/mol)
+c     ----------------------------------------------------------------------
+
+      subroutine SOLVEPRKFWD(
+     &     CHF_FRA[KfwdFab],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_BOX[box],
+     &     CHF_CONST_REAL[tcutoff],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_INT[nrct],
+     &     CHF_CONST_INT[ntbrct],
+     &     CHF_CONST_VR[alphai],
+     &     CHF_CONST_VI[prdep],
+     &     CHF_CONST_VI[thbody],
+     &     CHF_CONST_VR[PREAR],
+     &     CHF_CONST_VR[PRpreAF],
+     &     CHF_CONST_VR[PRbetai],
+     &     CHF_CONST_REAL[Fcval],
+     &     CHF_CONST_VR[TroeAlpha],
+     &     CHF_CONST_VR[TroeTS],
+     &     CHF_CONST_VR[TroeTS2],
+     &     CHF_CONST_VR[TroeTS3],
+     &     CHF_CONST_VR[SRIa],
+     &     CHF_CONST_VR[SRIb],
+     &     CHF_CONST_VR[SRIc],
+     &     CHF_CONST_VR[SRId],
+     &     CHF_CONST_VR[SRIe],      
+     &     CHF_CONST_VR[molmass])
+
+      integer CHF_AUTODECL[i]
+      integer comp, scomp, rctcomp, curTB, curPR, loopsp
+      real_t kfwd1, spec(0:numspecies-1), k0, kinfty, sumtbval, Pr
+      real_t mmass1(0:numspecies-1), rho, T, F, kfinal, Tinv
+
+      loopsp = numspecies - 1
+c     Faster to calculate these beforehand
+      do comp = 0, loopsp
+         mmass1(comp) = 1E-6/molmass(comp)
+      enddo
+      CHF_AUTOMULTIDO[box;i]
+         rho = Wc(CHF_AUTOIX[i], rcomp)
+         T = Wc(CHF_AUTOIX[i], tcomp)
+c     If T < tcutoff, leave the reaction set to 0
+         if(T .lt. tcutoff) then
+            cycle
+         endif
+         do comp = 0, loopsp
+            scomp = wcompstart + comp
+            spec(comp) = mmass1(comp)*rho*max(zero,Wc(CHF_AUTOIX[i],scomp))
+         enddo
+c     The current reference for TB and PR reactions
+         curTB = 0
+c     Current PR reaction
+         curPR = 0
+         Tinv = one/T
+c     Loop over all reactions
+         do rctcomp = 0, nrct - 1
+c     Solve initial k_fwd from reaction line, already in KfwdFab
+            kfwd1 = KfwdFab(CHF_AUTOIX[i], rctcomp)
+c     If reaction isn't PR, then k_fwd = kfwd1 and everything else is skipped
+            if(prdep(rctcomp) .eq. 0) then
+               KfwdFab(CHF_AUTOIX[i],rctcomp) = kfwd1
+               if(thbody(rctcomp) .eq. 1) then
+                  curTB = curTB + 1
+               endif
+               cycle
+            endif
+c     Check if the PR is bimolecular and solve for k_0 and k_infty
+            if(prdep(rctcomp) .gt. 0) then
+               k0 = kfwd1
+               kinfty = PRpreAF(curPR)*(T**PRbetai(curPR))*
+     &              exp(-PREAR(curPR)*Tinv)
+            else
+c     Otherwise, PR is unimolecular
+               kinfty = kfwd1
+               k0 = PRpreAF(curPR)*(T**PRbetai(curPR))*
+     &              exp(-PREAR(curPR)*Tinv)
+            endif
+c     Calculate the [M] sum alpha_i * [X]
+            sumtbval = zero
+            call CALCTHIRDBODY()
+c     Calculate the reduced pressure variable
+            Pr = k0*sumtbval/kinfty
+c     Check for the type of PR solver to solve for F
+c     If 1, then we have the Lindemann type
+c     If 2, then we have Troe type
+c     If 3, then we have SRI type
+            if(abs(prdep(rctcomp)) .eq. 1) then
+               F = Fcval
+            else if(abs(prdep(rctcomp)) .eq. 2) then
+               call TROESOLUTION()
+            else if(abs(prdep(rctcomp)) .eq. 3) then
+               call SRISOLUTION()
+            endif
+            if(prdep(rctcomp) .gt. 0) then
+c     Reaction rate for bimolecular reaction
+               kfinal = k0*(one/(Pr + one))*F
+            else
+c     Reaction rate for unimolecular reaction
+               kfinal = kinfty*(Pr/(Pr + one))*F
+            endif
+            KfwdFab(CHF_AUTOIX[i],rctcomp) = kfinal
+c     Advance the PR and TB equation numbers
+            curTB = curTB + 1
+            curPR = curPR + 1
+         enddo
+      CHF_ENDDO
+      return
+
+      contains
+
+      subroutine TROESOLUTION()
+      real_t c1, c2, n1, n2, d, cval, nval, Fcent, Ftemp
+c     Coefficients for Troe reactions
+      c1 = -0.4
+      c2 = -0.67
+      n1 = 0.75
+      n2 = -1.27
+      d = 0.14
+      Fcent = (one - TroeAlpha(curPR))*exp(-T/TroeTS3(curPR)) +
+     &     TroeAlpha(curPR)*exp(-T/TroeTS(curPR))
+c     We arbitrarily set the T** = -100 to be 
+      if(TroeTS2(curPR) .gt. zero) then
+         Fcent = Fcent + exp(-TroeTS2(curPR)*Tinv)
+      endif
+      cval = c1 + c2*Fcent
+      nval = n1 + n2*Fcent
+      Ftemp = one + ((log(Pr) + cval)/(nval - d*(log(Pr) + cval)))**2
+      F = exp(log(Fcent)/Ftemp)
+      end subroutine
+
+      subroutine SRISOLUTION()
+      real_t xval
+      xval = one/(one + log(Pr)*log(Pr))
+      F = SRId(curPR)*(SRIa(curPR)*exp(-SRIb(curPR)*Tinv)+
+     &     exp(-T/SRIc(curPR)))**xval*T**SRIe(curPR)
+      end subroutine
+
+      subroutine CALCTHIRDBODY()
+      integer tbcomp
+      do comp = 0, loopsp
+c     Third-body component number
+         tbcomp = comp*ntbrct + curTB
+         sumtbval = sumtbval + alphai(tbcomp)*spec(comp)
+      enddo
+      end subroutine
+      end
+               
+c     ----------------------------------------------------------------------
+c     Computes reaction source term per unit mass, or rho*omega if
+c     pressure-dependent reactions are present
+c     
+c     RW               <=  Cell-centered rho*omega
+c     invDtFab         <=  Sum of the inverse of the time steps
+c     Wc                => Cell-centered primitive values
+c     KfwdFab           => FAB of cell-centered forward reaction rates
+c     KbkwdFab          => FAB of cell-centered backward reaction rates for REV
+c     box               => Box defining where to compute temperature
+c     tcutoff           => If T < tcutoff, reaction source is set to 0
+c     tdiff             => Difference in T to have to resolve G values
+c     rcomp             => Density index for primitive variables
+c     tcomp             => Temperature index for primitive variables
+c     wcompstart        => First primitive species component
+c     numspecies        => Number of species   
+c     nrct              => Number of reactions
+c     ntbrct            => Number of third body reactions
+c     allrevreacts      => If 1, then all reactions are REV reactions
+c     SpecPerReact      => Maximum possible number of reactants or products
+c                          per reaction
+c     EAR               => Vector of the activation energy/R
+c     preAF             => Forward pre-exponential coefficients
+c     betai             => Temperature exponent
+c     nup               => Stoichiometric coefficients for reactants
+c     nupp              => Stoichiometric coefficients for products
+c     reactref          => Ref containing corresponding reactant species
+c     prodref           => Ref containing corresponding product species
+c     revreact          => Vector indicating reaction is reversible or not
+c     thbody            => Int to indicate if the reaction is third body
+c     alphai            => Third body reaction coefficients
+c     molmass           => Vector of molar mass in (kg/mol)
+c     a1-b2L            => Coefficients for h and s for 200 < T < 1000
+c     a1-b2H            => Coefficients for h and s for 1000 < T < 6000
+c     Rinp              => Universal gas constant
+c     reffrombase       => Refinement from base, for time step calc
+c     minChemDt        <=  Minimum chemical time step
+c     ----------------------------------------------------------------------
+
+      subroutine SOLVEPROMEGA(
+     &     CHF_FRA[RW],
+     &     CHF_FRA1[invDtFab],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_CONST_FRA[KfwdFab],
+     &     CHF_CONST_FRA[KbkwdFab],
+     &     CHF_BOX[box],
+     &     CHF_CONST_REAL[tcutoff],
+     &     CHF_CONST_REAL[tdiff],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_INT[nrct],
+     &     CHF_CONST_INT[ntbrct],
+     &     CHF_CONST_INT[allrevreact],
+     &     CHF_CONST_INT[SpecsPerReact],
+     &     CHF_CONST_VI[numrects],
+     &     CHF_CONST_VI[numprods],
+     &     CHF_CONST_VR[nup],
+     &     CHF_CONST_VR[nupp],
+     &     CHF_CONST_VI[reactref],
+     &     CHF_CONST_VI[prodref],
+     &     CHF_CONST_VI[revreact],
+     &     CHF_CONST_VI[thbody],
+     &     CHF_CONST_VR[alphai],
+     &     CHF_CONST_VR[molmass],
+     &     CHF_CONST_VR[a1L],
+     &     CHF_CONST_VR[a2L],
+     &     CHF_CONST_VR[a3L],
+     &     CHF_CONST_VR[a4L],
+     &     CHF_CONST_VR[a5L],
+     &     CHF_CONST_VR[a6L],
+     &     CHF_CONST_VR[a7L],
+     &     CHF_CONST_VR[b1L],
+     &     CHF_CONST_VR[b2L],
+     &     CHF_CONST_VR[a1H],
+     &     CHF_CONST_VR[a2H],
+     &     CHF_CONST_VR[a3H],
+     &     CHF_CONST_VR[a4H],
+     &     CHF_CONST_VR[a5H],
+     &     CHF_CONST_VR[a6H],
+     &     CHF_CONST_VR[a7H],
+     &     CHF_CONST_VR[b1H],
+     &     CHF_CONST_VR[b2H],
+     &     CHF_CONST_REAL[Rinp],
+     &     CHF_CONST_REAL[reffrombase],
+     &     CHF_REAL[minChemDt])
+
+      integer CHF_AUTODECL[i]
+      integer comp, offcomp, scomp, spcomp1, spcomp2
+      integer rctcomp, nucomp, curTB, curREV, cnumr, cnump, loopsp
+      real_t rho, T, sumtbval, Tprev
+      real_t keq, spec(0:numspecies-1), ffwd, kfwd, fback, kbkwd
+      real_t gfval(0:numspecies-1), patmR, dsmdh, sumnuval
+      real_t destrate(0:numspecies-1), Tinv, Tlog, bkconst, factor1
+      real_t mmass1(0:numspecies-1),mmass2(0:numspecies-1)
+
+c     For do loops that only iterate over the solved species
+      loopsp = numspecies - 1
+c     Previous temperature
+      Tprev = zero
+c     P_atm = 101325 Pa but we mulitply by 10 to convert to cgs
+      patmR = 101325.0d0*ten/(Rinp*1.0E7)
+      factor1 = one/twenty
+c     Faster to calculate these beforehand
+      do comp = 0, loopsp
+         mmass1(comp) = 1E-6/molmass(comp)
+         mmass2(comp) = 1E6*molmass(comp)
+      enddo      
+      CHF_AUTOMULTIDO[box;i]
+         rho = Wc(CHF_AUTOIX[i], rcomp)
+         T = Wc(CHF_AUTOIX[i], tcomp)
+c     If T < tcutoff, leave the reaction set to 0
+         if(T .lt. tcutoff) then
+            cycle
+         endif
+         Tinv = one/T
+         Tlog = log(T)
+         bkconst = patmR*Tinv
+         do comp = 0, loopsp
+            scomp = wcompstart + comp
+            spec(comp) = min(one,max(zero,Wc(CHF_AUTOIX[i],scomp)))
+     &           *mmass1(comp)*rho
+            destrate(comp) = zero
+         enddo
+c     Only re-solve for Gibbs if the T changes by more than tdiff
+c     Don't solve if all reactions are REV reactions
+         if(abs(T - Tprev) > tdiff .and. allrevreact == 0) then
+            call SETCOEFFS()
+            Tprev = T
+         endif
+c     The current reference for third body reactions
+         curTB = 0
+c     The current reference for the REV reactions
+         curREV = 0
+c     Loop over number of reactions
+         do rctcomp = 0, nrct - 1
+            cnumr = numrects(rctcomp) - 1
+            cnump = numprods(rctcomp) - 1
+c     Loop over both reactants and products
+            nucomp = SpecsPerReact*rctcomp
+c     Calculate the forward and backward reaction rate
+            kfwd = KfwdFab(CHF_AUTOIX[i],rctcomp)
+c     Calculate the third body sum
+            sumtbval = one
+c     NOTE: We use thbody = -1 for PR reactions that are not third-body
+c     We still must advance curTB for those reactions
+            if(thbody(rctcomp) .eq. 1) then
+               sumtbval = zero
+               call CALCTHIRDBODY()
+               curTB = curTB + 1
+            else if(thbody(rctcomp) .ne. 0) then
+               curTB = curTB + 1
+            endif
+            ffwd = one
+            fback = one
+c     Check if reaction is conventionally reversible (eg not REV)
+            if(revreact(rctcomp) .eq. 0) then
+               dsmdh = zero
+               sumnuval = zero
+               do offcomp = nucomp, nucomp+cnumr
+                  spcomp1 = reactref(offcomp)
+                  ffwd = ffwd*spec(spcomp1)**nup(offcomp)
+                  sumnuval = sumnuval - nup(offcomp)
+                  dsmdh = dsmdh - nup(offcomp)*gfval(spcomp1)
+               enddo
+c     Retrieve the number corresponding to the offcomp # product species
+               do offcomp = nucomp, nucomp+cnump
+                  spcomp2 = prodref(offcomp)
+                  fback = fback*spec(spcomp2)**nupp(offcomp)
+                  sumnuval = sumnuval + nupp(offcomp)
+                  dsmdh = dsmdh + nupp(offcomp)*gfval(spcomp2)
+               enddo
+               keq = exp(-dsmdh*Tinv)*bkconst**sumnuval
+               kbkwd = sumtbval*kfwd*fback/keq
+            else
+               do offcomp = nucomp, nucomp+cnumr
+                  spcomp1 = reactref(offcomp)
+                  ffwd = ffwd*spec(spcomp1)**nup(offcomp)
+               enddo
+               kbkwd = zero
+c     Check if reaction is REV type
+               if(revreact(rctcomp) .eq. -1) then
+                  do offcomp = nucomp, nucomp+cnump
+                     spcomp2 = prodref(offcomp)
+                     fback = fback*spec(spcomp2)**nupp(offcomp)
+                  enddo
+                  kbkwd = sumtbval*KbkwdFab(CHF_AUTOIX[i], curREV)*fback
+                  curREV = curREV + 1
+               endif
+            endif
+c     Multipy k_fwd by prod(x_n)
+            kfwd = sumtbval*kfwd*ffwd
+            do offcomp = nucomp, nucomp+cnumr
+               spcomp1 = reactref(offcomp)
+               RW(CHF_AUTOIX[i], spcomp1) = RW(CHF_AUTOIX[i], spcomp1)-
+     &              mmass2(spcomp1)*nup(offcomp)*(kfwd - kbkwd)
+               destrate(spcomp1) = destrate(spcomp1)+nup(offcomp)*kfwd
+            enddo
+            do offcomp = nucomp, nucomp+cnump
+               spcomp2 = prodref(offcomp)
+               RW(CHF_AUTOIX[i], spcomp2) = RW(CHF_AUTOIX[i], spcomp2)+
+     &              mmass2(spcomp2)*nupp(offcomp)*(kfwd - kbkwd)
+               destrate(spcomp2) = destrate(spcomp2)+nupp(offcomp)*kbkwd
+            enddo
+         enddo
+         call CALCDT()
+      CHF_ENDDO
+
+      return
+      
+      contains
+
+      subroutine CALCTHIRDBODY()
+      integer tbcomp
+      do comp = 0, loopsp
+c     Third-body component number
+         tbcomp = comp*ntbrct + curTB
+         sumtbval = sumtbval + alphai(tbcomp)*spec(comp)
+      enddo
+      end subroutine
+
+      subroutine SETCOEFFS()
+      real_t a1, a2, a3, a4, a5, a6, a7, b1, b2
+      if(T .ge. 1000.0d0) then
+         do comp = 0, loopsp
+            a1 = a1H(comp)
+            a2 = a2H(comp)
+            a3 = a3H(comp)
+            a4 = a4H(comp)
+            a5 = a5H(comp)
+            a6 = a6H(comp)
+            a7 = a7H(comp)
+            b1 = b1H(comp)
+            b2 = b2H(comp)
+            gfval(comp) = b1 + a2 - half*a1*Tinv + Tlog*(-a3*T + a2) +
+     &           T*(a3 - b2 - T*(a4*half + T*(a5*sixth +
+     &           T*(a6*twelfth + T*a7*factor1))))
+         enddo
+      else
+         do comp = 0, loopsp
+            a1 = a1L(comp)
+            a2 = a2L(comp)
+            a3 = a3L(comp)
+            a4 = a4L(comp)
+            a5 = a5L(comp)
+            a6 = a6L(comp)
+            a7 = a7L(comp)
+            b1 = b1L(comp)
+            b2 = b2L(comp)
+            gfval(comp) = b1 + a2 - half*a1*Tinv + Tlog*(-a3*T + a2) +
+     &           T*(a3 - b2 - T*(a4*half + T*(a5*sixth +
+     &           T*(a6*twelfth + T*a7*factor1))))
+         enddo
+      endif
+      end subroutine
+
+      subroutine CALCDT()
+      real_t tempdt, prevdt, mintau
+      mintau = 1.0E9
+      do comp = 0, loopsp
+         tempdt = spec(comp)/destrate(comp)
+         if(tempdt .gt. zero .and. tempdt < mintau) then
+            mintau = tempdt
+         endif
+      enddo
+      prevdt = invDtFab(CHF_AUTOIX[i])
+      invDtFab(CHF_AUTOIX[i]) = prevdt + 1.0d0/(reffrombase*mintau)
+      minChemDt = min(minChemDt, reffrombase*mintau)
+      end subroutine
+      
+      end

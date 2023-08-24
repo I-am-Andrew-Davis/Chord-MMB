@@ -1,0 +1,398 @@
+#====================================================================
+#
+# Method of manufactured solutions (MMS)
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/MMS.001000.3d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 20
+file.plot_prefix = plot/MMS.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 1000
+file.checkpoint_prefix = checkpoint/MMS.
+
+# Plot error at each time-step
+file.plot_error = 1
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemMMS
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+# MMS only supports inertial and viscous at the moment
+# Note: Since MMS requires a source term, source must be on
+#physics.fluid_models = source inertial
+#physics.fluid_models = source viscous
+physics.fluid_models = source inertial viscous
+
+#--------------------------------------------------------------------
+# Solution States
+#--------------------------------------------------------------------
+
+# The "mean" state is the mean of the solution quantity of interest
+# Note: MMS case only supports specifying density and pressure
+# Note: Frame-velocity is a parameter designed to ascertain the
+#       stagnation variables. For constant-velocity inlets, this
+#       quantity should be set to the inlet velocity value
+# Note: There only needs to be one "wall" state. In general, no-slip
+#       walls will always have zero velocity, while slip-walls will
+#       use the interior information to determine the velocity
+# Note: We can use moving walls as well
+state.names = "mean" "wall" "moving_wall"
+state.mean_frame-velocity = 0. 0. 0.
+state.mean_density        = 1.225
+state.mean_velocity       = 0. 0. 0.
+state.mean_pressure       = 101325.
+
+state.wall_frame-velocity = 0. 0. 0.
+state.wall_density        = 1.225
+state.wall_velocity       = 0. 0. 0.
+state.wall_pressure       = 101325.
+
+state.moving_wall_frame-velocity = 0. 0. 0.
+state.moving_wall_density        = 1.225
+state.moving_wall_velocity       = 10. 0. 0.
+state.moving_wall_pressure       = 101325.
+
+#--------------------------------------------------------------------
+# Perturbation Values -- Specific to MMS Case
+#--------------------------------------------------------------------
+
+# Note: MMS case only supports specifying density and pressure for
+#       unbounded domains. For wall-bounded domains, only density
+#       and temperature should be set (temperature gradient at
+#       walls is zero)
+
+# Note: Boundary conditions can be tested here as well
+#
+#                       Boundary 2
+#             -------------------------------
+#            |                               |
+#            |                               |
+# Boundary 1 |                               | Boundary 3
+#            |                               |
+#            |                               |
+#             -------------------------------
+#                       Boundary 4
+#
+# Note: Test cases fix certain profile parameters in IBC file
+#       If these parameters are changed, be careful. The test
+#       may no longer match the physical requirements of the
+#       BC implementation in Chord.
+
+# Amplitudes of solution waves
+ibc.wave_amp_density     = 0.5
+ibc.wave_amp_velocity    = 15. 20. 30.
+ibc.wave_amp_pressure    = 1000.
+ibc.wave_amp_temperature = 10.
+
+# Spatial frequencies associated with solution quantities
+ibc.space_omega_density     = 2. 3. 1.
+ibc.space_omega_x-velocity  = 3. 4. 1.
+ibc.space_omega_y-velocity  = 3. 2. 3.
+ibc.space_omega_z-velocity  = 3. 2. 3.
+ibc.space_omega_pressure    = 4. 1. 2.
+ibc.space_omega_temperature = 2. 1.4 3.
+
+# Temporal frequencies associated with solution quantities
+ibc.time_omega_density     = 2.
+ibc.time_omega_x-velocity  = 3.
+ibc.time_omega_y-velocity  = 2.
+ibc.time_omega_z-velocity  = 4.
+ibc.time_omega_pressure    = 2.
+ibc.time_omega_temperature = 1.
+
+# Spatial phase-shifts (origin assumed to be x,y,z = (0,0,0))
+ibc.space_phi_density     = 2.6 1.8 0.6
+ibc.space_phi_x-velocity  = 1.4 2.8 1.3
+ibc.space_phi_y-velocity  = 2.5 1.2 2.9
+ibc.space_phi_z-velocity  = 1.2 0.5 2.1
+ibc.space_phi_pressure    = 0.7 2.6 2.1
+ibc.space_phi_temperature = 0.8 1.3 1.9
+
+# Temporal phase-shifts (origin assumed to be t_0 = 0.)
+ibc.time_phi_density     = 2.5
+ibc.time_phi_x-velocity  = 0.7
+ibc.time_phi_y-velocity  = 1.2
+ibc.time_phi_z-velocity  = 1.4
+ibc.time_phi_pressure    = 0.1
+ibc.time_phi_temperature = 2.8
+
+# Physical length-scale associated with a frequency of 1
+ibc.characteristic_length = 1. 1. 1.
+
+# Physical time-scale associated with a frequency of 1
+ibc.characteristic_time = 0.01
+
+# Note: If the boundary conditions are tested here, you must change the
+#       boundary conditions to match the specified BCs in the comment
+# BC test cases
+ibc.bc_test_case = 0 # no boundaries
+#ibc.bc_test_case = 1 # BC 1: periodic, 2: adiabatic wall, 3: periodic
+                     # 4: slip-wall
+
+# Exact cell-averaged initialization and error calculation
+ibc.exact_initialization = 0
+
+# Sixth-order cell-averaged initialization and error calculation
+ibc.sixth_order_initialization = 0
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Periodicity
+ibc.periodicity = 1 1 1
+
+# Initial values
+ibc.initial_state = mean
+
+# Define default boundary types and states
+ibc.bc_type-default = Farfield
+ibc.bc_state-default = mean
+
+# Define boundary condition types
+ibc.bc_type-block_0_x_lo = Inflow
+ibc.bc_type-block_0_x_hi = Outflow
+ibc.bc_type-block_0_y_lo = AdiabaticWall
+ibc.bc_type-block_0_y_hi = AdiabaticWall
+
+# Define boundary condition states
+ibc.bc_state-block_0_x_lo = mean
+ibc.bc_state-block_0_x_hi = mean
+ibc.bc_state-block_0_y_lo = wall
+ibc.bc_state-block_0_y_hi = wall
+
+# Define order of BC
+ibc.bc_order-default = 4
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 64 64 64
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0. 0. 0.
+
+# Physical domain length -- MMS only supports
+#                           domain-length = 1 right now
+grid.domain_length = 1.0 1.0 1.0
+
+# Coordinate system (comment out to use Cartesian)
+# coordsys.type = cartesian_MMB
+# coordsys.type = warped
+# coordsys.scale = 0.1 0.1 0.
+# coordsys.relative_tolerance = 1.0e-12
+# coordsys.absolute_tolerance = 1.0e-13
+# coordsys.maximum_iterations = 100
+
+#--------------------------------------------------------------------
+# Grid -- stretched Cartesian mesh
+#--------------------------------------------------------------------
+
+# # Coarsest grid
+# grid.num_cells = 8 16 8
+
+# # Physical domain origin (optional: default 0)
+# grid.domain_origin = 0. 0. 0.
+
+# # Physical domain length -- Single-block MMS only supports
+# #                           domain-length = 1 right now
+# grid.domain_length = 0.5 1.0 0.5
+
+# # Coordinate system type
+# coordsys.type = cartesian
+# # Coordinate system origin
+# #coordsys.origin = 0. 0. 0.
+# # Coordinate system stretching
+# coordsys.stretch = 2. 1. 2.
+# # Final desired physical domain length
+# #coordsys.physical_length = 1. 1. 1.
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = 1.7894E-2
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = 2.5326E-1
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 10000
+
+# Initial solution time (optional: default 0.0)
+sol.initial_time = 0.
+
+# Max solution time (optional: use leading + for delta from init time)
+sol.max_time = 0.000512
+
+# Time step parameters (optional: default 0.0 for variable dt)
+sol.fixed_dt = 4.0E-6
+
+# CFL number (optional: default 1.0)
+sol.cfl = 1.0
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# SecondOrderCentral, SecondOrderPPM, FourthOrderCentral, and
+# FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderCentral
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 0
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+limit.fourth_order_artificial_viscosity_coef = 0.0
+
+# Acoustic and isentropic corrections for wall boundaries (optional: default 1)
+# This should only be set to 0 for verification of wall order-of-accuracy
+limit.wall_acoustic_isentropic_corrections = 0
+
+# Face limiting
+# limit.limit_face_values = 0
+
+# Disable high-order checks in limiters
+# limit.no_ho_checks = 1
+
+# Apply face construction order reduction
+# limit.use_fcor = 1
+
+# Set all convolutions or deconvolutions to be off
+#limit.total_dc_flattening = 2nd
+
+# Set convolutions and deconvolutions individually
+# limit.flatten_cell_convolution   = 2nd
+# limit.flatten_cell_deconvolution = 2nd
+# limit.flatten_face_convolution   = 2nd
+# limit.flatten_face_deconvolution = 2nd
+
+# Limit deconvolutions
+# limit.cell_deconvolution_limiting = true
+# limit.face_deconvolution_limiting = true
+
+# Provide extra limiting near boundaries
+#limit.extra_boundary_limiting = 1
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 2 2 2 2
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 2
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 128
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+#--------------------------------------------------------------------
+# ARK
+#--------------------------------------------------------------------
+
+# # Turns on additive RK functionality (optional: default false)
+# ark.use = true
+
+# # Specifies the max level ARK should be used for (optional: default 0)
+# ark.max_ark_level = 2
+
+# # Factor to scale the chemical time step size by. Can be a floating point
+# # amount (optional: default 1)
+# ark.chemical_dt_scale = 1
+
+# # Number of explicit RK4 steps to take before switching to ARK
+# # (optional: default 0)
+# ark.init_erk_steps = 0
+
+# # Print linear solver stats (optional: default false)
+# ark.pout_ls_stats = false
+
+# # Set the convergence tolerance for ARK's nonlinear solver (optional:
+# # default 1.e-12)
+# ark.nonlinear_convergence_tolerance = 1.e-12
+
+# # True = extrapolate initial guess at each ARK stage
+# # False = Use previous stage solution
+# ark.extrapolate_initial_guess = false
+
+# # Use PID step size control to limit ARK time step sizes
+# # using the 3rd order embedded scheme
+# ark.use_pid_control = false
+
+# # The epsilon to use for PID step size control
+# ark.pid_epsilon = 5.e-10
+
+#--------------------------------------------------------------------
+# Tagging
+#--------------------------------------------------------------------
+
+# tag.level_0 = physical_box 0 -0.0576 -0.078 0.2096 0.0576 0.078
+# tag.level_0 = boundary blk-1 1 low
+# tag.level_0 = boundary blk-23 1 high
+# # To properly nest level 1, you need
+# #   buffer = BF(BF^{-1}(1))/nRef^1/nRef^0 + BF(BF^{-1}(GridBufferSize))/nRef^0
+# # where BF is refining and BF^{-1} coarsening by the block factor
+# tag.level_0 = buffer 6
+# tag.level_1 = value hydrocarbon_flame -1 2.E-9 outside
+# tag.level_1 = buffer 3
+# tag.level_1 = boundary blk-1 1 low
+# tag.level_1 = boundary blk-23 1 high
+# tag.level_1 = buffer 1

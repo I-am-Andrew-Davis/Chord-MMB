@@ -1,0 +1,383 @@
+#====================================================================
+#
+# Basic Testing
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+verbose_dt = true
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/bluffBodyCH4Air_combustion.check.000000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 200
+file.plot_prefix = plot/bluffBodyCH4Air_combustion.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+#file.checkpoint_interval = 256
+file.checkpoint_interval = 5000
+file.checkpoint_prefix = checkpoint/bluffBodyCH4Air_combustion.check.
+
+file.plot_mapped_derivs = 1
+# file.plot_J = 1
+# file.plot_JU = 1
+# file.plot_ghost = 1
+# file.plot_DACFDCheck = 1
+#--------------------------------------------------------------------
+# Simulation Physics
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemBluffBodyCombustion
+
+# physics.fluid_models = inertial viscous #multispecies
+
+#--------------------------------------------------------------------
+# Thermally Perfect Multispecies
+#--------------------------------------------------------------------
+
+# therm.use_species_correction = true
+
+# If schmidt_number > 0., then schmidt number is used
+#therm.schmidt_num = 1.
+# Set if some species specific Lewis numbers are used (optional: default true)
+therm.multiple_lewis_numbers = true
+therm.lewis_number_file = Mechanism_files/speciesLewisNumbers.inp
+
+# Default uses the Lewis numbers for each species defined in
+# Mechanism_files/speciesLewisNumbers.inp
+therm.lewis_num = 1.
+
+# Increase the speed of the solution by the following:
+# 1. Increasing the cutoff temperature so that reactions are not solved
+# in areas with low temperatures (where reactions would not occur anyway)
+# (optional: default 250)
+therm.cutoff_temperature = 320.0
+
+# 2. Increase the temperature resolve difference. This means that values
+# dependent on temperature are only solved again if the temperature varies
+# by this value (optional: default 1.0)
+therm.temperature_diff_resolve = 3.0
+
+therm.species = H2 H O2 O OH HO2 H2O CH3 CH4 CO CO2 CH2O N2
+
+therm.num_of_reactions = 38
+
+# When using the reaction file from Cantera source, Please make sure the
+# unit of each coefficient is same as Chord's default reading function
+# setting [A:cm-s-K-mol E: cal/mol]. Also, please check the reactions'
+# formats to make sure whether they are irreversible reactions or not.
+therm.reaction_file = Mechanism_files/AFRLMethaneAir_chem.txt
+therm.thermo_file = Mechanism_files/AFRLMethaneAir_therm.txt
+therm.transport_file = Mechanism_files/Z66_trans.inp
+
+# Specify type of thermodynamic file being read in. 
+# 0: 7-coefficient NASA polynomials for Cp, 1: 5-coefficient Chemkin polynomials for Cp
+# (optional: default 0)
+therm.thermo_file_format = 1
+
+# Correct species to ensure realizability (sum rho_i = rho & rho_i > 0)
+therm.use_species_correction = true
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# read grid from file, overrides all grid and coordsys options
+#grid.file = grids/MVP4_4mm_Chord_2D_short.cgns
+#grid.file = grids/MVP4_4mm_Chord_2D_short_periodic.cgns
+grid.file = grids/MVP4_4mm_Chord_2D.cgns
+# grid.file = MVP4_4mm_Chord_2D_cartPlenum.cgns
+#grid.file = grids/MVP4_2mm_Chord_2D.cgns
+#grid.file = grids/MVP4_4mm_Chord_3D.cgns
+
+#--------------------------------------------------------------------
+# Solution states
+#--------------------------------------------------------------------
+
+# Phi = 0.65
+state.names = "inlet" "outlet" "wall" "burning"
+state.inlet_frame-velocity = 15.7 0.0 0.0
+state.inlet_CH4 = 0.0365 
+state.inlet_O2 = 0.2246
+state.inlet_N2 = 0.7389
+state.inlet_density = 1.102
+state.inlet_velocity = 15.7 0.0 0.0
+state.inlet_temperature = 310
+
+state.outlet_frame-velocity = 15.7 0.0 0.0
+state.outlet_velocity = 15.7 0.0 0.0
+state.outlet_temperature = 1800.
+state.outlet_pressure = 101287.
+state.outlet_CO2 = 0.1
+state.outlet_H2O = 0.0825
+state.outlet_O2 = 0.0786
+stAte.outlet_N2 = 0.7389
+
+state.burning_temperature = 1800.
+state.burning_CO2 = 0.1
+state.burning_H2O = 0.0825
+state.burning_O2 = 0.0786
+state.burning_N2 = 0.7389
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Periodicity
+ibc.periodicity = 0 0 1
+
+# Initial values
+ibc.initial_state = inlet
+
+# Initial values of region2
+ibc.initial_state_region2 = burning
+ibc.init_region2_lo = -0.03 -0.022 -0.05
+ibc.init_region2_hi = 0.01 0.022 0.05
+
+# Define default boundary condition types and states
+# Define order of BC
+ ibc.bc_type-default = AdiabaticWall
+ ibc.bc_type-dom-174_x_lo = Inflow
+ ibc.bc_type-dom-30_x_lo = Inflow
+ ibc.bc_type-dom-1_x_hi = Outflow
+ ibc.bc_type-dom-2_x_hi = Outflow
+ ibc.bc_type-dom-3_x_hi = Outflow
+# Define boundary conditions types
+ ibc.bc_state-default = wall
+ ibc.bc_state-dom-174_x_lo = inlet
+ ibc.bc_state-dom-30_x_lo = inlet
+ ibc.bc_state-dom-1_x_hi = outlet
+ ibc.bc_state-dom-2_x_hi = outlet
+ ibc.bc_state-dom-3_x_hi = outlet
+ibc.bc_order-default = 1
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = -1.
+
+# Density (optional: default 1.2250 (kg/m^3))
+#fluid.rho = 1.225
+
+# Temperature (optional: default 288.15 (K))
+# Sets P = 1.0
+fluid.T = 310.
+fluid.P = 100000.
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = -1.
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Time-stepping method
+sol.time_stepping_method = ARK4
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 220000
+
+# Initial solution time (optional: default 0.0)
+sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 2.090  # ~40 flow through times
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.E-10
+
+# Limit on the time step growth (optional: default 1.1)
+#sol.max_dt_growth = 1.1
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 1.0
+
+# Initial CFD for ramping (optional: default cfl)
+# sol.initial_cfl = 1.0
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening)
+# Options are FourthOrderPPM, FourthOrderCentral, FirstOrderGodunov
+# (optional: default FourthOrderPPM)
+limit.method = SecondOrderPPM
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default 5)
+#limit.face_order = 4
+
+# Face limiting
+limit.limit_face_values = 0
+
+# Disable high-order checks in limiters
+limit.no_ho_checks = 1
+
+# Use total DC flattening
+# This means convolution and deconvolution flattening is used on cells and faces
+# Can be overwritten by the specific selections below
+#limit.total_dc_flattening = 2nd
+
+# Apply face construction order reduction
+# Automatically applied when total dc flattening is true
+# and face value limiting is on
+#limit.use_fcor = 1
+
+# Convolution and deconvolution flattening
+# Flattening of convolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.convolution_flattening = 2nd
+
+# Flattening of deconvolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.deconvolution_flattening = 2nd
+
+# Or these can be set individually, options are true, false, and 2nd
+limit.flatten_cell_convolution = 2nd
+limit.flatten_cell_deconvolution = 2nd
+limit.flatten_face_convolution = 2nd
+limit.flatten_face_deconvolution = 2nd
+
+# Limiting of deconvolutions
+# limit.deconvolution_limiting    = true
+limit.cell_deconvolution_limiting = true
+limit.face_deconvolution_limiting = true
+
+# Set the reaction order
+limit.reaction_order = 2
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+#limit.fourth_order_artificial_viscosity_coef = 0.3
+
+# Provide extra limiting near boundaries
+limit.extra_boundary_limiting = 1
+
+# Use clipping and redistribution for AMR interpolation
+limit.use_clipping = true
+limit.use_HO_clipping = false
+limit.use_clipping_post_smoothing = false
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 2
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 160 160 -1
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+#amr.tag_buffer_size = 1
+
+# Set a base level for dynamic refinement (optional: default 0)
+amr.base_level = 1
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 16
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.85
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+# Regrid to add or subtract AMR levels after restarting simulation
+# NOTE: Only add or subtract one level of AMR per restart. If more
+#       than one level is needed, restart once per every level
+#       using the updated checkpoint file. Running for a few
+#       iterations between each level addition can help smooth
+#       potential transients created by regridding
+#amr.regrid_on_restart = 0
+
+#--------------------------------------------------------------------
+# ARK
+#--------------------------------------------------------------------
+
+# Turns on additive RK functionality (optional: default false)
+ark.use = true
+
+# Specifies the max level ARK should be used for (optional: default 0)
+ark.max_ark_level = 2
+
+# Factor to scale the chemical time step size by. Can be a floating point
+# amount (optional: default 1)
+ark.chemical_dt_scale = 1
+
+# Number of explicit RK4 steps to take before switching to ARK
+# (optional: default 0)
+ark.init_erk_steps = 0
+
+# Print linear solver stats (optional: default false)
+ark.pout_ls_stats = false
+
+# Set the convergence tolerance for ARK's nonlinear solver (optional:
+# default 1.e-8)
+ark.nonlinear_convergence_tolerance = 1.e-8
+
+# True = extrapolate initial guess at each ARK stage
+# False = Use previous stage solution
+ark.extrapolate_initial_guess = true
+
+# Use PID step size control to limit ARK time step sizes
+# using the 3rd order embedded scheme
+ark.use_pid_control = true
+
+# The epsilon to use for PID step size control
+ark.pid_epsilon = 5.e-10
+
+#--------------------------------------------------------------------
+# Tagging
+#--------------------------------------------------------------------
+
+tag.level_0 = physical_box 0 -0.0576 -0.078 0.2096 0.0576 0.078
+tag.level_0 = boundary dom-36 1 low
+tag.level_0 = boundary dom-180 1 high
+# To properly nest level 1, you need
+#   buffer = BF(BF^{-1}(1))/nRef^1/nRef^0 + BF(BF^{-1}(GridBufferSize))/nRef^0
+# where BF is refining and BF^{-1} coarsening by the block factor
+tag.level_0 = buffer 6
+tag.level_1 = value hydrocarbon_flame -1 2.E-9 outside
+tag.level_1 = buffer 3
+tag.level_1 = boundary dom-36 1 low
+tag.level_1 = boundary dom-180 1 high
+tag.level_1 = buffer 1

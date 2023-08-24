@@ -1,0 +1,80 @@
+% Allows compilation of just this section in this directory
+\ifx\havefulldoc\undefined
+  \input{../definitions}
+  \begin{document}
+\fi
+
+\begin{center}
+  \large\bfseries Considerations for the volume flux, $\avg{\NrmT_d\vec{\chi}}$, at block periodic boundaries that overlap with refinement interfaces
+\end{center}
+
+The volume flux, $\avg{\NrmT_d \vec{\chi}}$, is used to define $\avg{J}$:
+%%
+\begin{align*}
+  \avg{J} &= \frac{1}{h^D} \int \limits_{x(V_\ibold)} \mathrm{d} \vecx\\
+          &= \frac{1}{h^D} \int \limits_{x(V_\ibold)} \vecnabla_x \cdot \frac{\vecx}{D} \mathrm{d} \vecx\\
+          &= \frac{1}{h^D} \int \limits_{V_\ibold} \vecnabla_{{\xi}} \cdot (\NrmT\vec{\chi}) \mathrm{d} \vecxi\,,
+\end{align*}
+%%
+where $\vec{\chi}(\,\vecxi\,)\!=\! \frac{\vecx(\vecxi)}{D}$.  The volume flux is used to construct $\avg{J}$ and to define the snapback flux during regrid operations.  To ensure freestream preservation, it must be consistent across the grid.  Problems occur at periodic boundaries because the value of $\vecx$ changes across the periodic jump.  $\avg{\NrmT_d\vec{\chi}}$ does not have a consistent definition.  During application of the face register, where the sum of the evaluation of $\avg{\NrmT_d\vec{\chi}}^{\ell+1}$ on the fine faces is used to overwrite $\avg{\NrmT_d{\vec{\chi}}}^{\ell}$ on the coarse face across a periodic boundary, the change in $\vecx$ must be considered.  In the following, this change is denoted as $\vec{\delta}$.
+
+On a face, the average of $\vecx$ is given by:
+%%
+\begin{equation}
+  \avg{\vecx}_{\hhstep{+}} = \vecx_{\hhstep{+}} + \frac{h^2}{24} \Delta^{\perp,d} {\vecx}_{\hhstep{+}}\,,
+  \label{eq:avgx}
+\end{equation}
+%%
+where the $\Delta^{\perp,d}$ is a second-order accurate Laplacian computed only in directions orthogonal to $d$, i.e.,
+%%
+\begin{equation}
+  \Delta^{\perp,d} = \Delta - \fpartial{}{\xi_d}{2}\,. \nonumber
+\end{equation}
+%%
+At the other side of a periodic boundary,
+\begin{equation}
+  \avg{\vecx + \vec{\delta}}_{\hhstep{+}} = \vecx_{\hhstep{+}} + \vec{\delta}_{\hhstep{+}} + \frac{h^2}{24} \Delta^{\perp,d} (\vecx + \vec{\delta})_{\hhstep{+}}\,.
+  \label{eq:avgxd}
+\end{equation}
+%%
+Since the faces are conforming, we know that $\Delta^{\perp,d} {\vecx}_{\hhstep{+}} = \Delta^{\perp,d} (\vecx + \vec{\delta})_{\hhstep{+}}$.  Therefore, subtracting \eqref{eq:avgx} from \eqref{eq:avgxd} yields
+%%
+\begin{equation}
+\avg{\vecx + \vec{\delta}}_{\hhstep{+}} = \avg{\vecx}_{\hhstep{+}} + \vec{\delta}_{\hhstep{+}}\,.
+\end{equation}
+%%
+
+In a similar fashion, the product rule is used to find the average volume flux,
+%%
+\begin{equation}
+  \avg{\NrmT_d\vec{\chi}}_{\hhstep{+}} = \avg{\NrmT_d}_{\hhstep{+}}\avg{\vec{\chi}}_{\hhstep{+}} + \frac{h^2}{12}\sum_{d'\ne d}\fpartial{\NrmT_d}{\xi_{d'}}{1}\fpartial{\vec{\chi}}{\xi_{d'}}{1} + O(h^4)\,,
+  \label{eq:avgNtX}
+\end{equation}
+%%
+and
+%%
+\begin{equation}
+  \avg{\NrmT_d(\vec{\chi} + \vec{\delta}/D)}_{\hhstep{+}} = \avg{\NrmT_d}_{\hhstep{+}}\avg{\vec{\chi} + \vec{\delta}/D}_{\hhstep{+}} + \frac{h^2}{12}\sum_{d'\ne d}\fpartial{\NrmT_d}{\xi_{d'}}{1}\fpartial{\vec{\chi} + \vec{\delta}/D}{\xi_{d'}}{1} + O(h^4)\,,
+  \label{eq:avgNtXd}
+\end{equation}
+%%
+Because the faces are conforming,
+%%
+\begin{equation*}
+  \fpartial{\vec{\chi}}{\xi_{d'}}{1} = \fpartial{\vec{\chi} + \vec{\delta}/D}{\xi_{d'}}{1}
+\end{equation*}
+%%
+and subtracting \eqref{eq:avgNtX} from \eqref{eq:avgNtXd} yields
+%%
+\begin{align*}
+  \avg{\NrmT_d(\vec{\chi} + \vec{\delta}/D)}_{\hhstep{+}} &= \avg{\NrmT_d\vec{\chi}}_{\hhstep{+}} + \avg{\NrmT_d}_{\hhstep{+}}\avg{\vec{\chi} + \vec{\delta}/D}_{\hhstep{+}} - \avg{\NrmT_d}_{\hhstep{+}}\avg{\vec{\chi}}_{\hhstep{+}}\\
+  &= \avg{\NrmT_d\vec{\chi}}_{\hhstep{+}} +  \frac{\avg{\NrmT_d}_{\hhstep{+}}}{D}\left[\avg{\vecx + \vec{\delta}}_{\hhstep{+}} - \avg{\vecx}_{\hhstep{+}}\right]\\
+  &= \avg{\NrmT_d\vec{\chi}}_{\hhstep{+}} +  \frac{\avg{\NrmT_d}_{\hhstep{+}}}{D}\left[\avg{\vecx}_{\hhstep{+}} + \vec{\delta}_{\hhstep{+}} - \avg{\vecx}_{\hhstep{+}}\right]\\
+  &= \avg{\NrmT_d\vec{\chi}}_{\hhstep{+}} +  \avg{\NrmT_d}_{\hhstep{+}}\frac{\vec{\delta}_{\hhstep{+}}}{D}\,.
+\end{align*}
+%%
+In the above, use $\avg{\NrmT_d}_{\hhstep{+}}^{\ell}$ that is defined as a sum from the finer mesh.
+
+\ifx\havefulldoc\undefined
+\end{document}
+\fi

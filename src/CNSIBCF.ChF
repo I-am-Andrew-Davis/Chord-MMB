@@ -1,0 +1,707 @@
+C       _______               __
+C      / ___/ /  ___  __  ___/ /
+C     / /__/ _ \/ _ \/ _\/ _  /
+C     \___/_//_/\___/_/  \_._/
+C     Please refer to Copyright.txt, in Chord's root directory.
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+
+c ----------------------------------------------------------------------
+c  Sets small values based on reference conditions.  These are from the
+c  EoSCommon common block and define "small" values
+c
+c  a_smallr         <=  Small reference density
+c  a_smallp         <=  Small reference pressure
+c  a_gamma           => Specific heat ratio (just use 1.4 if varying)
+c  a_rRef            => Reference density
+c  a_qRef            => Reference speed (should be non-zero)
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCSETCOMMONREF(
+     &   CHF_REAL[a_smallr],
+     &   CHF_REAL[a_smallp],
+     &   CHF_CONST_REAL[a_gamma],
+     &   CHF_CONST_REAL[a_rhoRef],
+     &   CHF_CONST_REAL[a_qRef])
+
+#include "EosCommon.fh"
+
+      real_t ke
+
+      gamma = a_gamma
+
+      ke = half*a_qRef*a_qRef
+
+      smallr = small * a_rhoRef
+      smallu = small * a_qRef
+      smallp = small * a_rhoRef * ke
+
+      a_smallr = smallr
+      a_smallp = smallp
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Sets an initial uniform conservative solution on the grid.  Assumes
+c  a calorically perfect gas.
+c
+c  U                <=  Conservative state
+c  box               => Where to initialize
+c  rho               => Freestream density
+c  p                 => Freestream pressure
+c  vel               => Freestream velocity
+c  gamma             => Gamma
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCINIT(
+     &   CHF_FRA[U],
+     &   CHF_BOX[box],
+     &   CHF_CONST_REAL[rho],
+     &   CHF_CONST_REAL[p],
+     &   CHF_CONST_REALVECT[vel],
+     &   CHF_CONST_REAL[gamma])
+
+      integer CHF_AUTODECL[i]
+      integer icomp, comp
+
+      real_t Ucell(0:UNUM-1)
+      real_t ke
+
+      Ucell(URHO) = rho;
+      CHF_DTERM[
+         Ucell(UMOMX) = rho*vel(0);
+         Ucell(UMOMY) = rho*vel(1);
+         Ucell(UMOMZ) = rho*vel(2)]
+
+      ke  = half * CHF_DTERM[  vel(0)*vel(0);
+     &                       + vel(1)*vel(1);
+     &                       + vel(2)*vel(2)]
+
+      Ucell(UENG) = p/(gamma - one) + rho*ke;
+
+      comp = 0  ! Avoid warning
+      do icomp = 0, UNUM-1
+         select case (icomp)
+         case (0)
+            comp = URHO
+         case (1)
+            comp = UENG
+         CHF_DTERM[
+         case (2)
+            comp = UMOMX;
+         case (3)
+            comp = UMOMY;
+         case (4)
+            comp = UMOMZ]
+         end select
+         CHF_AUTOMULTIDO[box;i]
+            U(CHF_AUTOIX[i], comp) = Ucell(comp)
+         CHF_ENDDO
+      enddo
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Deprecated! Use computeWallPrimState in CNSIBC.H
+c  Sets the primitive state on the faces of a wall BC
+c
+c  Wface            <=  Primitive state corrected for wall (face-
+c                       centered average)
+c  Wface             => Primitive state from interior scheme (face-
+c                       centered average)
+c  box               => Box of boundary faces to adjust
+c  Wcell             => Average primitive state in the cell
+c  gammaFaceFab      => Gamma values from Wface
+c  gammaCellFab      => Gamma values from Wcell
+c  wallVel           => Velocity of the wall (for no-slip)
+c  viscousSlip       => 1 - Use slip conditions on wall
+c                       0 - No-slip *or* inertial only (no viscous
+c                           terms)
+c  dir               => Direction of the boundary
+c  lohiSign          => Sign indicating side of the boundary
+c                       (-1 = lo; +1 = hi)
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCPRIMSTATEWALL(
+     &   CHF_FRA[Wface],
+     &   CHF_BOX[box],
+     &   CHF_CONST_FRA[Wcell],
+     &   CHF_CONST_FRA1[gammaFaceFab],
+     &   CHF_CONST_FRA1[gammaCellFab],
+     &   CHF_CONST_REALVECT[wallVel],
+     &   CHF_CONST_INT[rcomp],
+     &   CHF_CONST_INT[pcomp],
+     &   CHF_CONST_INT[velcomp],
+     &   CHF_CONST_INT[viscousSlip],
+     &   CHF_CONST_INT[dir],
+     &   CHF_CONST_INT[lohiSign])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+
+      real_t unormFace, unormCell, rho, pres, c
+      real_t unormDiff, presLimit, rhoLimit
+      real_t gammaFace, gammaCell, gammaVal
+
+c-----Thermodynamics
+
+      CHF_AUTOMULTIDO[box;i]
+         unormFace = Wface(CHF_AUTOIX[i], velcomp + dir)
+         unormCell = Wcell(CHF_AUTOIX[i], velcomp + dir)
+
+         gammaFace = gammaFaceFab(CHF_AUTOIX[i])
+         gammaCell = gammaCellFab(CHF_AUTOIX[i])
+
+c-- Limiting -------------------------------------------------------------------
+c        unormFace is interpolated.  Logically, it must be between 0 and
+c        unormCell.  Limit unormFace so it is in this range.
+         if (unormFace*unormCell .lt. zero) then
+            unormFace = zero
+         elseif (abs(unormFace) .gt. abs(unormCell)) then
+            unormFace = unormCell
+         endif
+
+c        Knowing unormFace and unormCell, we can now estimate the limit of
+c        the thermodynamic state at the face.  We use an acoustic correction
+c        based on the difference between the normal velocity at the cell
+c        center and at the face
+         unormDiff = unormCell - unormFace
+         rho    = max(Wcell(CHF_AUTOIX[i], rcomp ), smallr)
+         pres   = max(Wcell(CHF_AUTOIX[i], pcomp), smallp)
+         c      = sqrt(gammaCell * pres / rho)
+         presLimit = pres + lohiSign * rho * unormDiff * c
+         rhoLimit = rho*(presLimit/pres)**(one/gammaCell)
+
+c        Now limit the density and pressure at the face
+         if (unormFace*lohiSign .gt. zero) then  ! Compression
+c           Pressure and density should increase approaching the wall
+            rho  = max(rhoLimit, Wface(CHF_AUTOIX[i], rcomp))
+            pres = max(presLimit, Wface(CHF_AUTOIX[i], pcomp))
+            gammaVal = max(gammaCell, gammaFace)
+         else                                    ! Expansion
+c           Pressure and density should decrease approaching the wall
+            rho  = min(rhoLimit, Wface(CHF_AUTOIX[i], rcomp))
+            pres = min(presLimit, Wface(CHF_AUTOIX[i], pcomp))
+            gammaVal = min(gammaCell, gammaFace)
+         endif
+         rho    = max(rho, smallr)
+         pres   = max(pres, smallp)
+         c      = sqrt(gammaVal * pres / rho)
+c-- End of limiting ------------------------------------------------------------
+
+c        Acoustic correction: delta u = delta p/(rho*c)
+         Wface(CHF_AUTOIX[i], pcomp) =
+     &      pres + lohiSign * rho * unormFace * c
+c        Isentropic correction: rho2/rho1 = (p2/p1)^(1/gamma)
+         Wface(CHF_AUTOIX[i], rcomp) =
+     &      rho*(Wface(CHF_AUTOIX[i], pcomp)/pres)**(one/gammaVal)
+      CHF_ENDDO
+
+c-----Momentum
+
+      if (viscousSlip .eq. 1) then
+c        **FIXME - this won't work for mapped grids
+         CHF_AUTOMULTIDO[box;i]
+            Wface(CHF_AUTOIX[i], velcomp + dir) = zero
+         CHF_ENDDO
+      else
+         CHF_DTERM[
+            CHF_AUTOMULTIDO[box;i]
+               Wface(CHF_AUTOIX[i], velcomp) = wallVel(0)
+            CHF_ENDDO;
+            CHF_AUTOMULTIDO[box;i]
+               Wface(CHF_AUTOIX[i], velcomp+1) = wallVel(1)
+            CHF_ENDDO;
+            CHF_AUTOMULTIDO[box;i]
+               Wface(CHF_AUTOIX[i], velcomp+2) = wallVel(2)
+            CHF_ENDDO;]
+      endif
+
+      return
+      end
+
+
+
+c ----------------------------------------------------------------------
+c  Sets the primitive state on the faces of a wall BC
+c  FIXME: Must be reevaluated for correctness by Nate Overton
+c
+c  Wface            <=  Primitive state corrected for wall (face-
+c                       centered average)
+c  Wface             => Primitive state from interior scheme (face-
+c                       centered average)
+c  box               => Box of boundary faces to adjust
+c  Wcell             => Average primitive state in the cell
+c  unitNormal        => Unit normal basis vectors boundary faces
+c  gammaFaceFab      => Gamma values from Wface
+c  gammaCellFab      => Gamma values from Wcell
+c  wallVel           => Velocity of the wall (for no-slip)
+c  viscousSlip       => 1 - Use slip conditions on wall
+c                       0 - No-slip *or* inertial only (no viscous
+c                           terms)
+c  dir               => Direction of the boundary
+c  lohiSign          => Sign indicating side of the boundary
+c                       (-1 = lo; +1 = hi)
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCPRIMSTATEWALLMAPPED(
+     &   CHF_FRA[Wface],
+     &   CHF_BOX[box],
+     &   CHF_CONST_FRA[Wcell],
+     &   CHF_CONST_FRA[unitNormal],
+     &   CHF_CONST_FRA1[gammaFaceFab],
+     &   CHF_CONST_FRA1[gammaCellFab],
+     &   CHF_CONST_REALVECT[wallVel],
+     &   CHF_CONST_INT[rcomp],
+     &   CHF_CONST_INT[pcomp],
+     &   CHF_CONST_INT[velcomp],
+     &   CHF_CONST_INT[viscousSlip],
+     &   CHF_CONST_INT[dir],
+     &   CHF_CONST_INT[lohiSign])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+      real_t CHF_AUTODECL[norm]
+
+      real_t unormFace, unormCell, rho, pres, c
+      real_t unormDiff, presLimit, rhoLimit
+      real_t gammaFace, gammaCell, gammaVal
+
+c-----Thermodynamics
+      CHF_AUTOID[ii1; dir; 1]
+
+      CHF_AUTOMULTIDO[box;i]
+         if (lohiSign .gt. zero) then
+            CHF_DTERM[
+            norm0 = unitNormal(CHF_AUTOIX[i], 0);
+            norm1 = unitNormal(CHF_AUTOIX[i], 1);
+            norm2 = unitNormal(CHF_AUTOIX[i], 2)]
+         else
+            CHF_DTERM[
+            norm0 = unitNormal(CHF_OFFSETIX[i; +ii1], 0);
+            norm1 = unitNormal(CHF_OFFSETIX[i; +ii1], 1);
+            norm2 = unitNormal(CHF_OFFSETIX[i; +ii1], 2)]
+         endif
+    
+         unormFace = CHF_DTERM[   Wface(CHF_AUTOIX[i], velcomp) * norm0;
+     &                        + Wface(CHF_AUTOIX[i], velcomp+1) * norm1;
+     &                        + Wface(CHF_AUTOIX[i], velcomp+2) * norm2]
+
+         unormCell = CHF_DTERM[   Wcell(CHF_AUTOIX[i], velcomp) * norm0;
+     &                        + Wcell(CHF_AUTOIX[i], velcomp+1) * norm1;
+     &                        + Wcell(CHF_AUTOIX[i], velcomp+2) * norm2]
+
+         gammaFace = gammaFaceFab(CHF_AUTOIX[i])
+         gammaCell = gammaCellFab(CHF_AUTOIX[i])
+
+c-----Momentum
+         if (viscousSlip .eq. 1) then
+c     ** Set normal velocity component = 0
+            CHF_DTERM[
+            Wface(CHF_AUTOIX[i], velcomp)   =
+     &           Wface(CHF_AUTOIX[i], velcomp)   - unormFace * norm0;
+            Wface(CHF_AUTOIX[i], velcomp+1) =
+     &           Wface(CHF_AUTOIX[i], velcomp+1) - unormFace * norm1;
+            Wface(CHF_AUTOIX[i], velcomp+2) =
+     &           Wface(CHF_AUTOIX[i], velcomp+2) - unormFace * norm2;]
+c     ** perscribe wall velocity 
+         else
+            CHF_DTERM[
+            Wface(CHF_AUTOIX[i], velcomp)   = wallVel(0);
+            Wface(CHF_AUTOIX[i], velcomp+1) = wallVel(1);
+            Wface(CHF_AUTOIX[i], velcomp+2) = wallVel(2);]
+         endif
+      
+c-- Limiting -------------------------------------------------------------------
+c        unormFace is interpolated.  Logically, it must be between 0 and
+c        unormCell.  Limit unormFace so it is in this range.
+         if (unormFace*unormCell .lt. zero) then
+            unormFace = zero
+         elseif (abs(unormFace) .gt. abs(unormCell)) then
+            unormFace = unormCell
+         endif
+
+c        Knowing unormFace and unormCell, we can now estimate the limit of
+c        the thermodynamic state at the face.  We use an acoustic correction
+c        based on the difference between the normal velocity at the cell
+c        center and at the face
+         unormDiff = unormCell - unormFace
+         rho    = max(Wcell(CHF_AUTOIX[i], rcomp ), smallr)
+         pres   = max(Wcell(CHF_AUTOIX[i], pcomp), smallp)
+         c      = sqrt(gammaCell * pres / rho)
+         presLimit = pres + lohiSign * rho * unormDiff * c
+         rhoLimit = rho*(presLimit/pres)**(one/gammaCell)
+
+c        Now limit the density and pressure at the face
+         if (unormFace*lohiSign .gt. zero) then  ! Compression
+c           Pressure and density should increase approaching the wall
+            rho  = max(rhoLimit, Wface(CHF_AUTOIX[i], rcomp))
+            pres = max(presLimit, Wface(CHF_AUTOIX[i], pcomp))
+            gammaVal = max(gammaCell, gammaFace)
+         else                                    ! Expansion
+c           Pressure and density should decrease approaching the wall
+            rho  = min(rhoLimit, Wface(CHF_AUTOIX[i], rcomp))
+            pres = min(presLimit, Wface(CHF_AUTOIX[i], pcomp))
+            gammaVal = min(gammaCell, gammaFace)
+         endif
+         rho    = max(rho, smallr)
+         pres   = max(pres, smallp)
+         c      = sqrt(gammaVal * pres / rho)
+c-- End of limiting ------------------------------------------------------------
+
+c        Acoustic correction: delta u = delta p/(rho*c)
+         Wface(CHF_AUTOIX[i], pcomp) =
+     &      pres + lohiSign * rho * unormFace * c
+c        Isentropic correction: rho2/rho1 = (p2/p1)^(1/gamma)
+         Wface(CHF_AUTOIX[i], rcomp) =
+     &      rho*(Wface(CHF_AUTOIX[i], pcomp)/pres)**(one/gammaVal)
+      CHF_ENDDO
+
+      return
+      end
+
+      
+c ----------------------------------------------------------------------
+c  Extrapolates the cell-averaged state in two layers of ghost cells
+c  with a Neumann boundary condition
+c     phi              <=  Updated with extrapolated ghost values
+c     phi               => Interior cell data
+c     box               => Box describing single layer of ghost cells
+c                          adjacent to the boundary
+c     bdryGrad          => The value for the gradient on the boundary
+c     dir               => Direction of the boundary face
+c     sideSign          => -1 = low face, +1 = high face
+c     compVec           => Vector of ints for which component to apply
+c                          the Neumann boundary condition to
+c     dx                => Computational grid spacing
+c     Note: The bdryGrad cells have been shifted to correspond with the
+c     first layer of ghost cells
+c ----------------------------------------------------------------------
+
+      subroutine SOLVE2CELLAVGGHOSTWNEUMANNCOND(
+     &     CHF_FRA[phi],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[bdryGrad],
+     &     CHF_CONST_INT[dir],
+     &     CHF_CONST_INT[sideSign],
+     &     CHF_CONST_VI[compVec],
+     &     CHF_CONST_REAL[dx])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+      integer CHF_AUTODECL[ii2]
+      integer CHF_AUTODECL[ii3]
+      integer numcomp, comp, phicomp
+
+      real_t factor1, ca1, wj
+
+      CHF_AUTOID[ii1; dir; sideSign]
+      CHF_AUTOID[ii2; dir; sideSign*2]
+      CHF_AUTOID[ii3; dir; sideSign*3]
+
+      numcomp = CHF_UBOUND[compVec]
+
+      factor1 = one/11.0d0
+      ca1 = sidesign*twelve*dx
+
+      do comp = 0, numcomp
+         phicomp = compVec(comp)
+         CHF_AUTOMULTIDO[box;i]
+c     First cell
+            wj = factor1*(ca1*bdryGrad(CHF_AUTOIX[i],phicomp) +
+     &           nine*phi(CHF_OFFSETIX[i;-ii1],phicomp) +
+     &           three*phi(CHF_OFFSETIX[i;-ii2],phicomp) -
+     &           phi(CHF_OFFSETIX[i;-ii3],phicomp))
+            phi(CHF_AUTOIX[i], phicomp) = wj
+c     Second cell
+            phi(CHF_OFFSETIX[i;+ii1], phicomp) =
+     &           -ca1*bdryGrad(CHF_AUTOIX[i],phicomp) +
+     &           fifteen*wj - fifteen*phi(CHF_OFFSETIX[i;-ii1],phicomp)
+     &           + phi(CHF_OFFSETIX[i;-ii2],phicomp)
+         CHF_ENDDO
+      enddo
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c     Solves for the boundary value using ghost cells that were extrapolated
+c     phi              <=  Face-averaged values on physical boundaries
+c     box               => Box describing first layer of ghost cells
+c     phicell           => Cell averaged values
+c     dir               => Direction of the boundary face
+c     compVec           => Vector of ints for which component to
+c                          solve the boundary values
+c     Note: The face-averaged values are shifted to match the first
+c     layer of ghost cells
+c ----------------------------------------------------------------------
+
+      subroutine SOLVEBDRYFACEVAL(
+     &     CHF_FRA[phi],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[phicell],
+     &     CHF_CONST_INT[dir],
+     &     CHF_CONST_VI[compVec])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+      integer CHF_AUTODECL[ii2]
+      integer numcomp, comp, phicomp
+
+      real_t factor, WLL, WL, WR, WRR
+
+      CHF_AUTOID[ii1; dir]
+      CHF_AUTOID[ii2; dir; 2]
+
+      numcomp = CHF_UBOUND[compVec]
+
+      factor = one/twelve
+
+      do comp = 0, numcomp
+         phicomp = compVec(comp)
+         CHF_AUTOMULTIDO[box;i]
+            WLL = phicell(CHF_OFFSETIX[i; -ii2], phicomp)
+            WL = phicell(CHF_OFFSETIX[i; -ii1], phicomp)
+            WR = phicell(CHF_AUTOIX[i], phicomp)
+            WRR = phicell(CHF_OFFSETIX[i; +ii1], phicomp)
+            phi(CHF_AUTOIX[i], phicomp) =
+     &           factor*(seven*(WR + WL) - (WLL + WRR))
+         CHF_ENDDO
+      enddo
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Sets an initial uniform conservative solution on the grid
+c
+c  U                <=  Conservative momentum equation
+c  box               => Where to initialize/solve
+c  compState         => Starting component for species
+c  numSpecies        => Number of species
+c  perc              => Vector of the mass fraction to initialize each species
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCINITSPECIES(
+     &     CHF_FRA[U],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[compStart],
+     &     CHF_CONST_INT[numSpecies],
+     &     CHF_CONST_VR[perc])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer n
+      real_t rho
+
+      do n = compStart, compStart + numSpecies - 1
+         CHF_AUTOMULTIDO[box;i]
+            rho = U(CHF_AUTOIX[i], URHO)
+            U(CHF_AUTOIX[i],n) = rho*perc(n-compStart)
+         CHF_ENDDO
+      enddo
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Computes the cell-averaged 4th order gradient of phi in non-periodic 
+c  direction (\partial phi/ \partial y for example) for the first layer
+c  of ghost cell along the non-periodic boundary
+c
+c  cellgradphi      <=  Cell averaged gradients
+c  cellphi           => Data on cells
+c  box               => Box defining faces to compute gradient on
+c  sidesign          => Should be -1 for lower side, +1 for upper
+c  dir               => Direction of gradient
+c  dx                => Mesh spacing
+c ----------------------------------------------------------------------
+
+      subroutine BDRYCELLGRADTANDIR(
+     &     CHF_FRA1[cellgradphi],
+     &     CHF_CONST_FRA1[cellphi],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[sidesign],
+     &     CHF_CONST_INT[graddir],
+     &     CHF_CONST_REAL[dx])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+      integer CHF_AUTODECL[ii2]
+
+      real_t factor, a, b, c, d
+
+      CHF_AUTOID[ii1; graddir; -sidesign]
+      CHF_AUTOID[ii2; graddir; -2*sidesign]
+
+
+      factor = one/dx
+
+      if (sidesign .EQ. -1) then
+         a = -one/three
+         b = -one/two
+         c = one
+         d = -one/six
+      else
+         a = three/five
+         b = -three/ten
+         c = -one/five
+         d = -one/ten
+      endif
+
+      CHF_AUTOMULTIDO[box;i]
+         cellgradphi(CHF_AUTOIX[i]) = factor*(
+     &      a*cellphi(CHF_OFFSETIX[i;-ii1]) + 
+     &      b*cellphi(CHF_AUTOIX[i]) +
+     &      c*cellphi(CHF_OFFSETIX[i;+ii1]) +
+     &      d*cellphi(CHF_OFFSETIX[i;+ii2]))
+      CHF_ENDDO
+
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  This is copied and slightly modified from MOLPhysicsMappedArtViscF.ChF
+c  Compute artificial viscosity flux on a domain boundary face
+c  representing an inviscid wall in computational space for mapped
+c  grids. This uses a second order gradient at the wall
+c  WARNING - some of the variables have different centerings from
+c            similarly named ones in mappedArtVisc
+c
+c  NtF          <=> Flux due to artificial viscosity on the faces (must
+c                   be initialized to zero on entry)
+c  Nctg          => Metric terms on the faces (direction 'dir'), stored
+c                   with components contiguous.  A row of N^T is
+c                   contiguous.
+c  gradU         => Gradient of conserved variables in the cells, stored
+c                   as (gradient direction, conserved variable) using
+c                   Fortran ordering.  The components are contiguous.
+c                   This is a cell centered quantity.
+c  unitNormals   => Face-centered unit normals for boFaceBox
+c  divVel        => Divergence of the velocity on the faces
+c  c             => Local minimum sound speed squared on the *faces*
+c  J             => Metrics Jacobian on the *faces*
+c  alpha         => Art. Visc. coefficient
+c  beta          => Art. Visc. coefficient
+c  boFaceBox     => Layer of faces on the domain boundary
+c  sideSign      => High (1) or low (-1) side of a box
+c  dir           => Direction of faces to consider
+c ----------------------------------------------------------------------
+
+      subroutine MAPPEDARTVISCINVISCIDHO(
+     &   CHF_FRA[NtFMom],
+     &   CHF_FRA[UMom],
+     &   CHF_CONST_RCHARRAY[RANK_SPACEDIM_PLUS_1, Nctg],
+     &   CHF_CONST_FRA[unitNormalBasis],
+     &   CHF_CONST_FRA1[divVel],
+     &   CHF_CONST_FRA1[c],
+     &   CHF_CONST_FRA1[dx],
+     &   CHF_CONST_REAL[alpha],
+     &   CHF_CONST_REAL[beta],
+     &   CHF_BOX[boFaceBox],
+     &   CHF_BOX[stenBox],
+     &   CHF_CONST_INT[sideSign],
+     &   CHF_CONST_INT[dir])
+
+      integer idxNDir, idxNormalBase
+      integer iComp, iDir
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+
+      real_t faceDivVel, minc, dxFace, artViscCoef
+      real_t gradUX(0:CH_SPACEDIM-1), uj, ujp
+
+      CHF_AUTOID[ii1; dir; sideSign]
+      idxNDir = dir*CH_SPACEDIM
+      idxNormalBase = dir*CH_SPACEDIM
+
+c-----Set tangential components of the momentum to zero
+
+c     Transform the momemtum components into a basis with the first
+c     vector normal to the face
+      CHF_CALL FORWARDTRANSFORMF(CHF_FRA[UMom],
+     &                           CHF_CONST_FRA[unitNormalBasis],f
+     &                           CHF_BOX[stenBox])
+c     Set tangential components to zero
+      do iDir = 0, CH_SPACEDIM-1
+c        Normal basis vector is in direction 'dir'
+         if (iDir .ne. dir) then
+            CHF_AUTOMULTIDO[stenBox;i]
+               UMom(CHF_AUTOIX[i], iDir) = zero
+            CHF_ENDDO
+         endif
+      enddo
+c     Reverse transform
+      CHF_CALL REVERSETRANSFORMF(CHF_FRA[UMom],
+     &                           CHF_CONST_FRA[unitNormalBasis],
+     &                           CHF_BOX[stenBox])
+
+c-----Proceed with computing the flux due to artificial viscosity
+
+      CHF_AUTOMULTIDO[boFaceBox;i]
+c        Compute parameters for nu on the face
+         faceDivVel = divVel(CHF_AUTOIX[i])
+         if (faceDivVel < zero) then
+            minc = c(CHF_AUTOIX[i])
+c           Representative dx for the face
+            dxFace = dx(CHF_AUTOIX[i])
+c           Compute coefficient from scalars
+            artViscCoef = alpha*nuFace()
+            do iComp = 0, CH_SPACEDIM - 1
+               uj = UMom(CHF_AUTOIX[i], iComp)
+               ujp = UMom(CHF_OFFSETIX[i;-ii1], iComp)
+c              Directly compute grad_x(<U>)
+               do iDir = 0, CH_SPACEDIM-1
+c     Uncomment for first order derivative
+c$$$                  gradUX(iDir) = two*UMom(CHF_AUTOIX[i], iComp)*
+c$$$     &                 abs(unitNormalBasis(CHF_AUTOIX[i],
+c$$$     &                 idxNormalBase + iDir))
+                  gradUX(iDir) = sideSign*(-nine*uj + ujp)/three*
+     &                 abs(unitNormalBasis(CHF_AUTOIX[i],
+     &                 idxNormalBase + iDir))
+               enddo
+c              Multiply by a row of N^T for this direction and alpha*nu to
+c              get the flux.  Only retain the normal components
+               NtFMom(CHF_AUTOIX[i], iComp) = artViscCoef*
+     &              gevvC(Nctg(idxNDir, CHF_AUTOIX[i]))
+            enddo
+         endif
+      CHF_ENDDO
+
+      return
+
+c- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+c-----These are simlar to those in mappedArtVisc
+
+      contains
+
+c-----Vector-vector multiply of row of N^T * (NgradU)
+
+         function gevvC(NTRow)
+         real_t gevvc
+         real_t NTRow(0:CH_SPACEDIM-1)
+         gevvc = CHF_DTERM[  NTRow(0)*gradUX(0);
+     &                     + NTRow(1)*gradUX(1);
+     &                     + NTRow(2)*gradUX(2);
+     &                     + NTRow(3)*gradUX(3);
+     &                     + NTRow(4)*gradUX(4);
+     &                     + NTRow(5)*gradUX(5)]
+         end function
+
+c-----Artificial viscosity parameter
+
+         function nuFace()
+         real_t nuFace
+         nuFace = dxFace*faceDivVel*
+     &      min(((dxFace*faceDivVel)**2)/(beta*minc), one)
+         end function
+
+      end

@@ -1,0 +1,115 @@
+C       _______               __
+C      / ___/ /  ___  __  ___/ /
+C     / /__/ _ \/ _ \/ _\/ _  /
+C     \___/_//_/\___/_/  \_._/
+C     Please refer to Copyright.txt, in Chord's root directory.
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+
+c ----------------------------------------------------------------------
+c  Sets inviscid state on boundary faces at walls for a cubic domain
+c  (i.e., one with straight walls)
+c
+c  Wgdnv            <=  State on boundary face
+c  Wextrap           => State extrapolated to the face by the scheme
+c  lohisign          => High or low side of a box
+c  dir               => Dir of the face
+c  box               => Face centered box on which to compute Wgdnv
+c
+c  Assumptions is made that velocity components are contiguous
+c ----------------------------------------------------------------------
+
+      subroutine REFERENCECUBEWALLBC(
+     &   CHF_FRA[Wgdnv],
+     &   CHF_CONST_FRA[Wextrap],
+     &   CHF_CONST_INT[lohisign],
+     &   CHF_CONST_INT[dir],
+     &   CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+
+      real_t unorm, rho, pres, c
+
+      CHF_AUTOMULTIDO[box;i]
+         unorm  = Wextrap(CHF_AUTOIX[i], WVELX + dir)
+         rho    = max(Wextrap(CHF_AUTOIX[i],WRHO ),smallr)
+         pres   = max(Wextrap(CHF_AUTOIX[i],WPRES),smallp)
+         c      = sqrt(gamma * pres / rho)
+
+         Wgdnv(CHF_AUTOIX[i],WRHO) = rho
+
+c        For Euler equations, we only need the normal flux and can just set
+c        all velocity components to zero.
+c        For Navier-Stokes, all should be zero anyways.
+         CHF_DTERM[
+            Wgdnv(CHF_AUTOIX[i],WVELX) = zero;
+            Wgdnv(CHF_AUTOIX[i],WVELY) = zero;
+            Wgdnv(CHF_AUTOIX[i],WVELZ) = zero]
+
+c        Acoustic correction: delta u = delta p/(rho*c)
+         Wgdnv(CHF_AUTOIX[i],WPRES) = pres + lohisign * rho * unorm * c
+      CHF_ENDDO
+
+      return
+      end
+
+
+c ----------------------------------------------------------------------
+c  Computes the cell-averaged 4th order gradient of phi in non-periodic 
+c  direction (\partial phi/ \partial y for example) for the first layer
+c  of ghost cell along the non-periodic boundary
+c
+c  cellgradphi      <=  Cell averaged gradients
+c  cellphi           => Data on cells
+c  box               => Box defining faces to compute gradient on
+c  sidesign          => Should be -1 for lower side, +1 for upper
+c  dir               => Direction of gradient
+c  dx                => Mesh spacing
+c ----------------------------------------------------------------------
+
+c$$$      subroutine BDRYCELLGRADTANDIR(
+c$$$     &     CHF_FRA1[cellgradphi],
+c$$$     &     CHF_CONST_FRA1[cellphi],
+c$$$     &     CHF_BOX[box],
+c$$$     &     CHF_CONST_INT[sidesign],
+c$$$     &     CHF_CONST_INT[graddir],
+c$$$     &     CHF_CONST_REAL[dx])
+c$$$
+c$$$      integer CHF_AUTODECL[i]
+c$$$      integer CHF_AUTODECL[ii1]
+c$$$      integer CHF_AUTODECL[ii2]
+c$$$
+c$$$      real_t factor, a, b, c, d
+c$$$
+c$$$      CHF_AUTOID[ii1; graddir; -sidesign]
+c$$$      CHF_AUTOID[ii2; graddir; -2*sidesign]
+c$$$
+c$$$
+c$$$      factor = one/dx
+c$$$
+c$$$      if (sidesign .EQ. -1) then
+c$$$         a = -one/three
+c$$$         b = -one/two
+c$$$         c = one
+c$$$         d = -one/six
+c$$$      else
+c$$$         a = three/five
+c$$$         b = -three/ten
+c$$$         c = -one/five
+c$$$         d = -one/ten
+c$$$      endif
+c$$$
+c$$$      CHF_AUTOMULTIDO[box;i]
+c$$$         cellgradphi(CHF_AUTOIX[i]) = factor*(
+c$$$     &      a*cellphi(CHF_OFFSETIX[i;-ii1]) + 
+c$$$     &      b*cellphi(CHF_AUTOIX[i]) +
+c$$$     &      c*cellphi(CHF_OFFSETIX[i;+ii1]) +
+c$$$     &      d*cellphi(CHF_OFFSETIX[i;+ii2]))
+c$$$      CHF_ENDDO
+c$$$
+c$$$
+c$$$      return
+c$$$      end

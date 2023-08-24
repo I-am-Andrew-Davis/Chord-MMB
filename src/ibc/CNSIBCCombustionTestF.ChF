@@ -1,0 +1,344 @@
+C       _______               __
+C      / ___/ /  ___  __  ___/ /
+C     / /__/ _ \/ _ \/ _\/ _  /
+C     \___/_//_/\___/_/  \_._/
+C     Please refer to Copyright.txt, in Chord's root directory.
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+
+c     FIXME: These functions belong somewhere more universal, instead of
+c     seeming to apply to the CombustionTest case, perhaps a COMBIBC class
+c     ----------------------------------------------------------------------
+c     Sets the primitive values at the inlet jet
+c     This function sets the temperature at the inlet, then uses the
+c     set temperature and extrapolated pressure to calculate the density
+c     
+c     W            <=  Primitive variables
+c     box           => Where to initialize/solve
+c     X             => The physical locations on the boundary
+c     rcomp         => Density component
+c     pcomp         => Pressure component
+c     momcomp       => First component of velocity
+c     veldir        => Direction normal to the face being set
+c     tcomp         => Temperature component
+c     wcompstart    => First component of the species equations
+c     numspecies    => Number of species
+c     inletTemp     => Inlet temperature
+c     xo            => Physical location of the low end of the jet
+c     xl            => Physical location of the high end of the jet
+c     jetvel        => RealVect of the jet velocity
+c     rgas          => Sum of gas constants times jet species mass fractions
+c     jetspecies    => Vector of the mass fraction for each species in
+c                      the jet
+c     ----------------------------------------------------------------------
+
+      subroutine CNSIBCJET(
+     &     CHF_FRA[W],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA1[X],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[momcomp],
+     &     CHF_CONST_INT[veldir],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_REAL[inletTemp],
+     &     CHF_CONST_REAL[xo],
+     &     CHF_CONST_REAL[xl],
+     &     CHF_CONST_REALVECT[jetvel],
+     &     CHF_CONST_REAL[rgas],
+     &     CHF_CONST_VR[jetspecies])
+
+      integer CHF_AUTODECL[i]
+      integer comp, scomp, dir, velcomp
+      real_t xloc, xm, a, length, pres, maxvel
+
+      length = xl - xo
+      xm = xo + (xl - xo)/two
+c     Set max velocity normal to the face
+      maxvel = jetvel(veldir)
+      a = (-maxvel)/((xo - xm)**2)
+      CHF_AUTOMULTIDO[box;i]
+         xloc = X(CHF_AUTOIX[i])
+         pres = W(CHF_AUTOIX[i],pcomp)
+         W(CHF_AUTOIX[i],tcomp) = inletTemp
+c     Set the velocity normal to the face as a parabolic shape
+         velcomp = momcomp + veldir
+         W(CHF_AUTOIX[i], velcomp) = a*(xloc - xm)**2 + jetvel(veldir)
+         do comp = 0, numspecies - 1
+            scomp = wcompstart + comp
+            W(CHF_AUTOIX[i],scomp) = jetspecies(comp)
+         enddo
+c     Calculate the density from the inlet T and extrapolated pressure 
+         W(CHF_AUTOIX[i],rcomp) = pres/(rgas*inletTemp)
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     This function sets the temperature at the inlet and solves for the
+c     pressure using isentropic relations, then uses the ideal gas law
+c     to calculate the density
+c     
+c     W            <=  Primitive variables
+c     box           => Where to initialize/solve
+c     X             => The physical locations on the boundary
+c     rcomp         => Density component
+c     pcomp         => Pressure component
+c     momcomp       => First component of velocity
+c     veldir        => Direction normal to the face being set
+c     tcomp         => Temperature component
+c     wcompstart    => First component of the species equations
+c     numspecies    => Number of species
+c     gamma         => Specific heat ratio
+c     inletTemp     => Inlet temperature
+c     xo            => Physical location of the low end of the jet
+c     xl            => Physical location of the high end of the jet
+c     jetvel        => RealVect of the jet velocity
+c     rgas          => Sum of gas constants times jet species mass fractions
+c     jetspecies    => Vector of the mass fraction for each species in
+c                      the jet
+c     ----------------------------------------------------------------------
+
+      subroutine CNSIBCJETWALL(
+     &     CHF_FRA[W],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA1[X],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[momcomp],
+     &     CHF_CONST_INT[veldir],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_REAL[gamma],
+     &     CHF_CONST_REAL[inletTemp],
+     &     CHF_CONST_REAL[xo],
+     &     CHF_CONST_REAL[xl],
+     &     CHF_CONST_REALVECT[jetvel],
+     &     CHF_CONST_REAL[rgas],
+     &     CHF_CONST_VR[jetspecies])
+
+      integer CHF_AUTODECL[i]
+      integer comp, scomp, dir, velcomp
+      real_t xloc, xm, a, length, pres, maxvel, machsq
+      real_t machsqinv, velval
+
+      length = xl - xo
+      xm = xo + (xl - xo)/two
+c     Set max velocity normal to the face
+      maxvel = jetvel(veldir)
+      a = (-maxvel)/((xo - xm)**2)
+      machsqinv = one/(sqrt(gamma*inletTemp*rgas))
+      CHF_AUTOMULTIDO[box;i]
+         xloc = X(CHF_AUTOIX[i])
+         pres = W(CHF_AUTOIX[i],pcomp)
+         velval = a*(xloc - xm)**2 + jetvel(veldir)
+         machsq = (velval*machsqinv)**2
+         pres = pres*(one+(gamma-one)/two*machsq)**(gamma/(gamma - one))
+         W(CHF_AUTOIX[i],pcomp) = pres
+         W(CHF_AUTOIX[i],tcomp) = inletTemp
+c     Set the velocity normal to the face as a parabolic shape
+         velcomp = momcomp + veldir
+         W(CHF_AUTOIX[i], velcomp) = velval
+         do comp = 0, numspecies - 1
+            scomp = wcompstart + comp
+            W(CHF_AUTOIX[i],scomp) = jetspecies(comp)
+         enddo
+c     Calculate the density from the inlet T and extrapolated pressure 
+         W(CHF_AUTOIX[i],rcomp) = pres/(rgas*inletTemp)
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     Sets an initial uniform conservative solution on the grid
+c     
+c     W            <=  Primitive variables
+c     box           => Where to initialize/solve
+c     X             => The physical locations on the boundary
+c     xo            => Physical location of the low end of the jet
+c     xl            => Physical location of the high end of the jet
+c     jetVel        => Inlet velocity of the jet
+c     momcomp       => Momentum component of interest
+c     compstart     => First component of the species equations
+c     numspecies    => Number of species
+c     jetspecies    => Vector of the mass fraction for each species in
+c                      the jet
+c     ----------------------------------------------------------------------
+
+      subroutine CNSIBCJETINIT(
+     &     CHF_FRA[U],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA1[X],
+     &     CHF_CONST_REAL[xo],
+     &     CHF_CONST_REAL[xl],
+     &     CHF_CONST_REAL[p],
+     &     CHF_CONST_REAL[jetVel],
+     &     CHF_CONST_INT[momcomp],
+     &     CHF_CONST_INT[compstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_VR[jetspecies])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer comp, scomp
+      real_t xloc, xm, a, length, rho, vel
+
+      length = xl - xo
+      xm = xo + (xl - xo)/2
+      a = (-jetVel)/((xo - xm)**2)
+      CHF_AUTOMULTIDO[box;i]
+         xloc = X(CHF_AUTOIX[i])
+         rho = U(CHF_AUTOIX[i],URHO)
+         vel = (a*(xloc - xm)**2 + jetVel)
+         U(CHF_AUTOIX[i],momcomp) = rho*vel
+         U(CHF_AUTOIX[i],UENG) = rho*half*vel*vel + p/(gamma - one)
+         do comp = 0, numspecies - 1
+            scomp = compstart + comp
+            U(CHF_AUTOIX[i],scomp) = rho*jetspecies(comp)
+         enddo
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     Initializes the Rayleigh-Taylor problem
+c     
+c     W            <=  Primitive variables
+c     box           => Where to initialize/solve
+c     X             => The physical locations
+c     lorho         => Density for lower portion
+c     uprho         => Density for upper portion
+c     ly            => Length in y direction
+c     lx            => Half the length in x direction
+c     rcomp         => Density component
+c     compstart     => First component of the species equations
+c     numspecies    => Number of species
+c     lospecies     => Species fractions for lower region
+c     hispecies     => Species fractions for upper region
+c     ----------------------------------------------------------------------
+
+      subroutine CNSIBCRTINIT(
+     &     CHF_FRA[W],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[X],
+     &     CHF_CONST_REAL[lorho],
+     &     CHF_CONST_REAL[uprho],
+     &     CHF_CONST_REAL[ly],
+     &     CHF_CONST_REAL[lx],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[compstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_VR[lospecies],
+     &     CHF_CONST_VR[upspecies])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer comp, scomp
+      real_t xloc, yloc, soly
+
+      CHF_AUTOMULTIDO[box;i]
+         xloc = X(CHF_AUTOIX[i],0)
+         yloc = X(CHF_AUTOIX[i],1)
+         soly = ly*(0.5 + 0.05*cos(PI*(xloc-lx)/lx))
+         if(yloc .lt. soly) then
+            W(CHF_AUTOIX[i],rcomp) = lorho
+            do comp = 0, numspecies - 1
+               scomp = compstart + comp
+               W(CHF_AUTOIX[i],scomp) = lospecies(comp)
+            enddo
+         else
+            W(CHF_AUTOIX[i],rcomp) = uprho
+            do comp = 0, numspecies - 1
+               scomp = compstart + comp
+               W(CHF_AUTOIX[i],scomp) = upspecies(comp)
+            enddo
+         endif
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     Adds source term
+c     
+c     source       <=  Cell-averaged source term
+c     box           => Where to solve
+c     Wc            => Cell-averaged primitive variables
+c     ----------------------------------------------------------------------
+
+      subroutine GRAVITYFORCE(
+     &     CHF_FRA[source],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_CONST_REAL[grav],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[momcomp],
+     &     CHF_CONST_INT[engcomp])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      real_t rho
+      
+      CHF_AUTOMULTIDO[box;i]
+         rho = Wc(CHF_AUTOIX[i],rcomp)
+         source(CHF_AUTOIX[i],momcomp) = rho*grav
+         source(CHF_AUTOIX[i],engcomp) = rho*grav*Wc(CHF_AUTOIX[i],momcomp)
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     Initialize methane burner
+c     
+c     Wc           <= Primitive variable fab
+c     xfab          => Fab containing the physical cell locations
+c     box           => Box to iterate over
+c     tcomp         => Temperature component
+c     wcompstart    => First component of the primitive species concentrations
+c     flameloc      => Location of flame in flowdir
+c     flametemp     => Temperature of the flame
+c     inletmass     => Vector of the inlet mass fractions
+c     ----------------------------------------------------------------------
+
+      subroutine CNSIBCBURNERINIT(
+     &     CHF_FRA[Wc],
+     &     CHF_CONST_FRA1[xfab],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_REAL[flameloc],
+     &     CHF_CONST_REAL[flametemp],
+     &     CHF_CONST_VR[inletmass])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer comp, scomp
+      real_t x
+      
+      CHF_AUTOMULTIDO[box;i]
+         x = xfab(CHF_AUTOIX[i])
+         if(x >= flameloc) then
+            Wc(CHF_AUTOIX[i], tcomp) = flametemp
+         else
+            do comp = 0, numspecies - 1
+               scomp = wcompstart + comp
+               Wc(CHF_AUTOIX[i], scomp) = inletmass(comp)
+            enddo
+         endif
+      CHF_ENDDO
+
+      return
+      end

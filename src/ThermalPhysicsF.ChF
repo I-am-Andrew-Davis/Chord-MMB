@@ -1,0 +1,981 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+c     ----------------------------------------------------------------------
+c     EosCommon is set by CNSIBC::CNSIBC using Fortran kernel
+c     CNSIBCSETCOMMONREF from file CNSIBCF.ChF
+c     ----------------------------------------------------------------------
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+
+c     ----------------------------------------------------------------------
+c     Computes the conservative variables from the primitive variables
+c     
+c     Uc               <=  Conservative variables
+c     Wc                => Primitive variables
+c     box               => Box defining where to compute temperature
+c     rcomp             => Density index
+c     pcomp             => Pressure index
+c     engcomp           => Energy flux index
+c     velWcomp          => First primitive velocity index
+c     velUcomp          => First momentum flux index
+c     ucompstart        => First conservative species component
+c     wcompstart        => First primitive species component
+c     numspecies        => Number of species
+c     a1-a7,b1          => Vector enthalpy coefficients
+c     Rn                => Vector of gas constants for each species
+c     ----------------------------------------------------------------------
+
+      subroutine SPECIESPRIMTOCONSF(
+     &     CHF_FRA[Uc],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[engcomp],
+     &     CHF_CONST_INT[velWcomp],
+     &     CHF_CONST_INT[velUcomp],
+     &     CHF_CONST_INT[ucompstart],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_REAL[midT],
+     &     CHF_CONST_VR[a1L],
+     &     CHF_CONST_VR[a2L],
+     &     CHF_CONST_VR[a3L],
+     &     CHF_CONST_VR[a4L],
+     &     CHF_CONST_VR[a5L],
+     &     CHF_CONST_VR[a6L],
+     &     CHF_CONST_VR[a7L],
+     &     CHF_CONST_VR[b1L],
+     &     CHF_CONST_VR[a1H],
+     &     CHF_CONST_VR[a2H],
+     &     CHF_CONST_VR[a3H],
+     &     CHF_CONST_VR[a4H],
+     &     CHF_CONST_VR[a5H],
+     &     CHF_CONST_VR[a6H],
+     &     CHF_CONST_VR[a7H],
+     &     CHF_CONST_VR[b1H],
+     &     CHF_CONST_VR[H0],
+     &     CHF_CONST_VR[Rn])
+
+#include "EosCommon.fh"
+
+      integer CHF_DDECL[i;j;k]
+      integer CHF_DDECL[inorm ;itan1 ;itan2]
+      integer CHF_DDECL[inormc;itanc1;itanc2]
+      integer Wcomp, Ucomp, comp
+      real_t CHF_DDECL[uu;vv;ww]
+      real_t rho, rval, pres, re, ke, enthsum, T, hn, Tinv, Tlog
+      real_t spec(0:numspecies-1)
+
+      CHF_DTERM[
+      inorm = velWcomp;
+      itan1 = velWcomp + 1;
+      itan2 = velWcomp + 2]
+
+      CHF_DTERM[
+      inormc = velUcomp;
+      itanc1 = velUcomp + 1;
+      itanc2 = velUcomp + 2]
+
+      CHF_MULTIDO[box;i;j;k]
+         rho = Wc(CHF_IX[i;j;k],rcomp)
+         pres = Wc(CHF_IX[i;j;k],pcomp)
+c     Solve for the weighted universal gas constant and set rho*c_n
+         rval = zero
+         do comp = 0, numspecies - 1
+            Wcomp = wcompstart + comp
+            Ucomp = ucompstart + comp
+            spec(comp) = Wc(CHF_IX[i;j;k],Wcomp)
+            Uc(CHF_IX[i;j;k], Ucomp) = rho*spec(comp)
+            rval = rval + spec(comp)*Rn(comp)
+         enddo
+         T = pres/(rho*rval)
+         Tinv = one/T
+         Tlog = log(T)
+         enthsum = zero
+         if(T .ge. midT) then
+            do comp = 0, numspecies - 1
+               hn = H0(comp) + Rn(comp)*
+     &              (b1H(comp) - a1H(comp)*Tinv + a2H(comp)*Tlog +
+     &              T*(a3H(comp) + T*(a4H(comp)*half +
+     &              T*(a5H(comp)*third + T*(a6H(comp)*fourth +
+     &              T*a7H(comp)*fifth)))))
+               enthsum = enthsum + spec(comp)*hn
+            enddo
+         else
+            do comp = 0, numspecies - 1
+               hn = H0(comp) + Rn(comp)*
+     &              (b1L(comp) - a1L(comp)*Tinv + a2L(comp)*Tlog +
+     &              T*(a3L(comp) + T*(a4L(comp)*half +
+     &              T*(a5L(comp)*third + T*(a6L(comp)*fourth +
+     &              T*a7L(comp)*fifth)))))
+               enthsum = enthsum + spec(comp)*hn
+            enddo
+         endif
+         CHF_DTERM[
+         uu = Wc(CHF_IX[i;j;k],inorm);
+         vv = Wc(CHF_IX[i;j;k],itan1);
+         ww = Wc(CHF_IX[i;j;k],itan2)]
+
+         ke = half*(CHF_DTERM[uu*uu; + vv*vv; + ww*ww])
+
+         CHF_DTERM[
+         Uc(CHF_IX[i;j;k],inormc) = rho*uu;
+         Uc(CHF_IX[i;j;k],itanc1) = rho*vv;
+         Uc(CHF_IX[i;j;k],itanc2) = rho*ww]
+         Uc(CHF_IX[i;j;k],engcomp) = rho*ke + rho*enthsum - pres
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     Computes the primitive temperature variable from conservative variables
+c     
+c     T                <=  Temperature added to primitive state
+c     box               => Box defining where to compute temperature
+c     W                 => Primitive variables
+c     pcomp             => Component number of pressure
+c     rcomp             => Component number of density
+c     wcompstart        => First primitive species component
+c     numspecies        => Number of species
+c     Rn                => Vector of species specific gas constants
+c     ----------------------------------------------------------------------
+
+      subroutine COMBPRIMTEMPERATURE(
+     &     CHF_FRA1[Tc],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_VR[Rn])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer Wcomp, comp
+      real_t CHF_DDECL[uu;vv;ww]
+      real_t rho, pres, rval
+
+      CHF_AUTOMULTIDO[box;i]
+         rval = zero
+         do comp = 0, numspecies - 1
+            Wcomp = wcompstart + comp
+            rval = rval + Wc(CHF_AUTOIX[i], Wcomp)*Rn(comp)
+         enddo
+         rho = Wc(CHF_AUTOIX[i],rcomp)
+         pres = Wc(CHF_AUTOIX[i],pcomp)
+         Tc(CHF_AUTOIX[i]) = pres/(rho*rval)
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     Computes the pressure from the temperature and density
+c     
+c     Pc               <=  Pressure
+c     box               => Box defining where to compute temperature
+c     W                 => Primitive variables
+c     tcomp             => Component number of temperature
+c     rcomp             => Component number of density
+c     wcompstart        => First primitive species component
+c     numspecies        => Number of species
+c     Rn                => Vector of species specific gas constants
+c     ----------------------------------------------------------------------
+
+      subroutine COMBPRIMPRESSURE(
+     &     CHF_FRA1[Pc],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_VR[Rn])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer Wcomp, comp
+      real_t CHF_DDECL[uu;vv;ww]
+      real_t rho, temp, rval
+
+      CHF_AUTOMULTIDO[box;i]
+         rval = zero
+         do comp = 0, numspecies - 1
+            Wcomp = wcompstart + comp
+            rval = rval + Wc(CHF_AUTOIX[i], Wcomp)*Rn(comp)
+         enddo
+         rho = Wc(CHF_AUTOIX[i],rcomp)
+         temp = Wc(CHF_AUTOIX[i],tcomp)
+         Pc(CHF_AUTOIX[i]) = temp*rho*rval
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     Computes the pressure from the temperature and density
+c     
+c     rhoc             <=  Density
+c     box               => Box defining where to compute temperature
+c     W                 => Primitive variables
+c     tcomp             => Component number of temperature
+c     pcomp             => Component number of pressure
+c     wcompstart        => First primitive species component
+c     numspecies        => Number of species
+c     Rn                => Vector of species specific gas constants
+c     ----------------------------------------------------------------------
+
+      subroutine COMBPRIMDENSITY(
+     &     CHF_FRA1[rhoc],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_VR[Rn])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer Wcomp, comp
+      real_t CHF_DDECL[uu;vv;ww]
+      real_t pres, temp, rval
+
+      CHF_AUTOMULTIDO[box;i]
+         rval = zero
+         do comp = 0, numspecies - 1
+            Wcomp = wcompstart + comp
+            rval = rval + Wc(CHF_AUTOIX[i], Wcomp)*Rn(comp)
+         enddo
+         pres = Wc(CHF_AUTOIX[i],pcomp)
+         temp = Wc(CHF_AUTOIX[i],tcomp)
+         rhoc(CHF_AUTOIX[i]) = pres/(temp*rval)
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     Computes the species equation fluxes on the faces from the primitive 
+c     variables without limiting
+c     
+c     F                <=  Flux FAB 
+c     Wc                => Averaged primitive variables
+c     box               => Box defining where to compute temperature
+c     idir              => Direction of the current faces
+c     rcomp             => Density index
+c     pcomp             => Pressure index
+c     tcomp             => Temperature index
+c     engcomp           => Energy flux index
+c     velWcomp          => First primitive velocity index
+c     velUcomp          => First momentum flux index
+c     wcompstart        => First primitive species component
+c     ucompstart        => Conservative species component beginning
+c     numspecies        => Number of species
+c     midT              => T value related to coefficient intervals
+c     a1-a7,b1          => Vector of enthalpy coefficients
+c     H0                => Heat of formation 
+c     ----------------------------------------------------------------------
+
+      subroutine COMBFLUXF(
+     &     CHF_FRA[F],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[idir],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[engcomp],
+     &     CHF_CONST_INT[velWcomp],
+     &     CHF_CONST_INT[velUcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[ucompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_REAL[midT],
+     &     CHF_CONST_VR[a1L],
+     &     CHF_CONST_VR[a2L],
+     &     CHF_CONST_VR[a3L],
+     &     CHF_CONST_VR[a4L],
+     &     CHF_CONST_VR[a5L],
+     &     CHF_CONST_VR[a6L],
+     &     CHF_CONST_VR[a7L],
+     &     CHF_CONST_VR[b1L],
+     &     CHF_CONST_VR[a1H],
+     &     CHF_CONST_VR[a2H],
+     &     CHF_CONST_VR[a3H],
+     &     CHF_CONST_VR[a4H],
+     &     CHF_CONST_VR[a5H],
+     &     CHF_CONST_VR[a6H],
+     &     CHF_CONST_VR[a7H],
+     &     CHF_CONST_VR[b1H],
+     &     CHF_CONST_VR[H0],
+     &     CHF_CONST_VR[Rn])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer CHF_DDECL[inorm ;itan1 ;itan2]
+      integer CHF_DDECL[inormc;itanc1;itanc2]
+      integer spacedim, wcomp, fcomp, comp
+      real_t CHF_DDECL[uu;vv;ww]
+      real_t p, rho, enthval, e, ke, spec
+      real_t T, Tinv, Tlog, hn
+
+      spacedim = CH_SPACEDIM
+
+      CHF_DTERM[
+      inorm = velWcomp + idir;
+      itan1 = velWcomp + mod(idir + 1,spacedim);
+      itan2 = velWcomp + mod(idir + 2,spacedim)]
+
+      CHF_DTERM[
+      inormc = velUcomp + idir;
+      itanc1 = velUcomp + mod(idir + 1,spacedim);
+      itanc2 = velUcomp + mod(idir + 2,spacedim)]
+
+      CHF_AUTOMULTIDO[box;i]
+         rho = max(smallr,Wc(CHF_AUTOIX[i], rcomp))
+         p = Wc(CHF_AUTOIX[i], pcomp)
+         CHF_DTERM[
+         uu = Wc(CHF_AUTOIX[i],inorm);
+         vv = Wc(CHF_AUTOIX[i],itan1);
+         ww = Wc(CHF_AUTOIX[i],itan2)]
+         
+c     Calculate total enthalpy & solve species transport flux
+         enthval = zero
+         T = Wc(CHF_AUTOIX[i],tcomp)
+         Tinv = one/T
+         Tlog = log(T)
+         if(T .ge. midT) then
+            do comp = 0, numspecies - 1
+               hn = H0(comp) + Rn(comp)*
+     &              (b1H(comp) - a1H(comp)*Tinv + a2H(comp)*Tlog +
+     &              T*(a3H(comp) + T*(a4H(comp)*half +
+     &              T*(a5H(comp)*third + T*(a6H(comp)*fourth +
+     &              T*a7H(comp)*fifth)))))
+               wcomp = wcompstart + comp
+               fcomp = ucompstart + comp
+               spec = Wc(CHF_AUTOIX[i],wcomp)
+               enthval = enthval + spec*hn
+               F(CHF_AUTOIX[i],fcomp) = rho*spec*uu
+            enddo
+         else
+            do comp = 0, numspecies - 1
+               hn = H0(comp) + Rn(comp)*
+     &              (b1L(comp) - a1L(comp)*Tinv + a2L(comp)*Tlog +
+     &              T*(a3L(comp) + T*(a4L(comp)*half +
+     &              T*(a5L(comp)*third + T*(a6L(comp)*fourth +
+     &              T*a7L(comp)*fifth)))))
+               wcomp = wcompstart + comp
+               fcomp = ucompstart + comp
+               spec = Wc(CHF_AUTOIX[i],wcomp)
+               enthval = enthval + spec*hn
+               F(CHF_AUTOIX[i],fcomp) = rho*spec*uu
+            enddo
+         endif
+c     Solve for the flux values
+         F(CHF_AUTOIX[i],rcomp) = rho*uu
+         CHF_DTERM[
+         F(CHF_AUTOIX[i],inormc) = rho*uu*uu + p;
+         F(CHF_AUTOIX[i],itanc1) = rho*uu*vv;
+         F(CHF_AUTOIX[i],itanc2) = rho*uu*ww]
+         ke = half*(CHF_DTERM[uu*uu; + vv*vv; + ww*ww])
+         e = ke + enthval
+         F(CHF_AUTOIX[i],engcomp) = rho*uu*e
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     Computes the species correction by adding or subtracting from all
+c     non-zero species until the sum is 1
+c     
+c     Uc               <=  Final species corrected with error
+c     Uc                => Cell-averaged conservative variables
+c     box               => Box
+c     rcomp             => Density component
+c     scompstart        => First component of the species equations
+c     numspecies        => Number of species
+c     ----------------------------------------------------------------------
+
+      subroutine SPECIESCORRECTION(
+     &     CHF_FRA[Uc],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[scompstart],
+     &     CHF_CONST_INT[numspecies])
+
+      integer CHF_AUTODECL[i]
+      integer scomp, comp
+      real_t sum, rho
+
+      CHF_AUTOMULTIDO[box;i]
+         rho = Uc(CHF_AUTOIX[i],rcomp)
+         sum = zero
+         do comp = 0, numspecies - 1
+            scomp = scompstart + comp
+            Uc(CHF_AUTOIX[i],scomp) =
+     &           min(rho,max(zero,Uc(CHF_AUTOIX[i],scomp)))
+            sum = sum + Uc(CHF_AUTOIX[i],scomp)
+         enddo
+         do comp = 0, numspecies - 1
+            scomp = scompstart + comp
+            Uc(CHF_AUTOIX[i],scomp) = Uc(CHF_AUTOIX[i],scomp)*rho/sum
+         enddo
+      CHF_ENDDO
+
+      return
+
+      end
+
+c     ----------------------------------------------------------------------
+c     Solves for the mass diffusion coefficient, rho*D_n, multiplies it by
+c     \nabla c_n to get the final J_n. This is then multiplied by h_n and
+c     added to the energy flux.
+c     This function is for a constant Schmidt number, rho*D_n = mu/Sc
+c
+c     jnfab             => This is passed in originally as \nabla c_n
+c     jnfab            <=  Is multiplied by D_n to become J_n
+c     energyfab        <=  Species heat flux, h_n*J_n, is added to the energy
+c     box               => Box of faces to solve over 
+c     mufab             => Face-centered dynamic viscosity
+c     tfab              => Face-centered primitive temperature     
+c     numspecies        => Number of species
+c     scnum             => Schmidt number
+c     midT              => T value related to coefficient intervals
+c     a1-a7,b1          => Vector of enthalpy coefficients
+c     H0                => Heat of formation
+c     Rn                => Species specific gas constant
+c     ----------------------------------------------------------------------
+
+      subroutine CNHEATFLUXSC(
+     &     CHF_FRA[jnfab],
+     &     CHF_FRA[energyfab],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA1[mufab],
+     &     CHF_CONST_FRA1[tfab],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_REAL[scnum],
+     &     CHF_CONST_REAL[midT],
+     &     CHF_CONST_VR[a1L],
+     &     CHF_CONST_VR[a2L],
+     &     CHF_CONST_VR[a3L],
+     &     CHF_CONST_VR[a4L],
+     &     CHF_CONST_VR[a5L],
+     &     CHF_CONST_VR[a6L],
+     &     CHF_CONST_VR[a7L],
+     &     CHF_CONST_VR[b1L],
+     &     CHF_CONST_VR[a1H],
+     &     CHF_CONST_VR[a2H],
+     &     CHF_CONST_VR[a3H],
+     &     CHF_CONST_VR[a4H],
+     &     CHF_CONST_VR[a5H],
+     &     CHF_CONST_VR[a6H],
+     &     CHF_CONST_VR[a7H],
+     &     CHF_CONST_VR[b1H],
+     &     CHF_CONST_VR[H0],
+     &     CHF_CONST_VR[Rn])
+#include "EosCommon.fh"      
+
+      integer CHF_AUTODECL[i]
+      integer comp, jcomp, dir, spacedim
+      real_t T, Tinv, Tlog, mu, Dn, hn, Jn
+
+      spacedim = CH_SPACEDIM
+
+
+      CHF_AUTOMULTIDO[box;i]
+         mu = mufab(CHF_AUTOIX[i])
+         T = tfab(CHF_AUTOIX[i])
+         Tinv = one/T
+         Tlog = log(T)
+c     Diffusion coefficient: rho*D_n = mu/Sc
+         Dn = mu/scnum
+         if(T .ge. midT) then
+            do comp = 0, numspecies - 1
+               hn = H0(comp) + Rn(comp)*
+     &              (b1H(comp) - a1H(comp)*Tinv + a2H(comp)*Tlog +
+     &              T*(a3H(comp) + T*(a4H(comp)*half +
+     &              T*(a5H(comp)*third + T*(a6H(comp)*fourth +
+     &              T*a7H(comp)*fifth)))))
+               do dir = 0, spacedim - 1
+                  jcomp = spacedim*comp + dir
+                  Jn = Dn*jnfab(CHF_AUTOIX[i],jcomp)
+                  jnfab(CHF_AUTOIX[i],jcomp) = Jn
+                  energyfab(CHF_AUTOIX[i],dir) =
+     &                 energyfab(CHF_AUTOIX[i],dir) + hn*Jn
+               enddo
+            enddo
+         else
+            do comp = 0, numspecies - 1
+               hn = H0(comp) + Rn(comp)*
+     &              (b1L(comp) - a1L(comp)*Tinv + a2L(comp)*Tlog +
+     &              T*(a3L(comp) + T*(a4L(comp)*half +
+     &              T*(a5L(comp)*third + T*(a6L(comp)*fourth +
+     &              T*a7L(comp)*fifth)))))
+               do dir = 0, spacedim - 1
+                  jcomp = spacedim*comp + dir
+                  Jn = Dn*jnfab(CHF_AUTOIX[i],jcomp)
+                  jnfab(CHF_AUTOIX[i],jcomp) = Jn
+                  energyfab(CHF_AUTOIX[i],dir) =
+     &                 energyfab(CHF_AUTOIX[i],dir) + hn*Jn
+               enddo
+            enddo
+         endif
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     Solves for the mass diffusion coefficient, \rho*D_n, multiplies it by
+c     \nabla c_n to get the final J_n. This is then multiplied by h_n and
+c     added to the energy flux.
+c     This function is for a constant Lewis number, rho*D_n = kappa/(C_p*Le)
+c
+c     jnfab             => This is passed in originally as \nabla c_n
+c     jnfab            <=  Is multiplied by D_n to become J_n
+c     energyfab        <=  Species heat flux, h_n*J_n, is added to the energy
+c     box               => Box of faces to solve over      
+c     kappafab          => Face-centered thermal conductivity
+c     Wc                => Face-centered primitive variables
+c     tcomp             => Temperature index
+c     wcompstart        => Start of mass fraction indices
+c     midT              => T value related to coefficient intervals
+c     lenum             => Lewis numbers for each species
+c     a1-a7,b1          => Vector of enthalpy coefficients
+c     H0                => Heat of formation
+c     Rn                => Species specific gas constant
+c     ----------------------------------------------------------------------
+
+      subroutine CNHEATFLUXLE(
+     &     CHF_FRA[jnfab],
+     &     CHF_FRA[energyfab],
+     &     CHF_BOX[box],      
+     &     CHF_CONST_FRA1[kappafab],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_REAL[midT],
+     &     CHF_CONST_VR[lenum],
+     &     CHF_CONST_VR[a1L],
+     &     CHF_CONST_VR[a2L],
+     &     CHF_CONST_VR[a3L],
+     &     CHF_CONST_VR[a4L],
+     &     CHF_CONST_VR[a5L],
+     &     CHF_CONST_VR[a6L],
+     &     CHF_CONST_VR[a7L],
+     &     CHF_CONST_VR[b1L],
+     &     CHF_CONST_VR[a1H],
+     &     CHF_CONST_VR[a2H],
+     &     CHF_CONST_VR[a3H],
+     &     CHF_CONST_VR[a4H],
+     &     CHF_CONST_VR[a5H],
+     &     CHF_CONST_VR[a6H],
+     &     CHF_CONST_VR[a7H],
+     &     CHF_CONST_VR[b1H],
+     &     CHF_CONST_VR[H0],
+     &     CHF_CONST_VR[Rn])
+#include "EosCommon.fh"      
+
+      integer CHF_AUTODECL[i]
+      integer comp, jcomp, scomp, dir, spacedim
+      real_t T, Tinv, Tinv2, Tlog, kappa
+      real_t spec, cp, Dn, Jn, hn(0:numspecies-1)
+
+      spacedim = CH_SPACEDIM
+
+
+      CHF_AUTOMULTIDO[box;i]
+         kappa = kappafab(CHF_AUTOIX[i])
+         T = Wc(CHF_AUTOIX[i],tcomp)
+         Tinv = one/T
+         Tinv2 = Tinv/T
+         Tlog = log(T)
+         cp = zero
+         if(T .ge. midT) then
+            do comp = 0, numspecies - 1
+               scomp = wcompstart + comp
+               spec = Wc(CHF_AUTOIX[i], scomp)
+               hn(comp) = H0(comp) + Rn(comp)*
+     &              (b1H(comp) - a1H(comp)*Tinv + a2H(comp)*Tlog +
+     &              T*(a3H(comp) + T*(a4H(comp)*half +
+     &              T*(a5H(comp)*third + T*(a6H(comp)*fourth +
+     &              T*a7H(comp)*fifth)))))
+               cp = cp + spec*Rn(comp)*(a1H(comp)*Tinv2 +
+     &              a2H(comp)*Tinv + a3H(comp) + T*(a4H(comp) +
+     &              T*(a5H(comp) + T*(a6H(comp) + T*a7H(comp)))))
+            enddo
+         else
+            do comp = 0, numspecies - 1
+               scomp = wcompstart + comp
+               spec = Wc(CHF_AUTOIX[i], scomp)
+               hn(comp) = H0(comp) + Rn(comp)*
+     &              (b1L(comp) - a1L(comp)*Tinv + a2L(comp)*Tlog +
+     &              T*(a3L(comp) + T*(a4L(comp)*half +
+     &              T*(a5L(comp)*third + T*(a6L(comp)*fourth +
+     &              T*a7L(comp)*fifth)))))
+               cp = cp + spec*Rn(comp)*(a1L(comp)*Tinv2 +
+     &              a2L(comp)*Tinv + a3L(comp) + T*(a4L(comp) +
+     &              T*(a5L(comp) + T*(a6L(comp) + T*a7L(comp)))))
+            enddo
+         endif
+c     Diffusion coefficient: rho*D_n = kappa/(C_p*Le_i)
+         Dn = kappa/cp
+         do comp = 0, numspecies - 1
+            do dir = 0, spacedim - 1
+               jcomp = spacedim*comp + dir
+               Jn = Dn*jnfab(CHF_AUTOIX[i],jcomp)/lenum(comp)
+               jnfab(CHF_AUTOIX[i],jcomp) = Jn
+               energyfab(CHF_AUTOIX[i],dir) =
+     &              energyfab(CHF_AUTOIX[i],dir) + hn(comp)*Jn
+            enddo
+         enddo
+      CHF_ENDDO
+
+      return
+      end
+      
+c     ----------------------------------------------------------------------
+c     FIXME: This is no longer in use and is outdated
+c     Solves the Riemann problem using the same solver as CNS except
+c     for species concentration uses Roe's average
+c     
+c     Wgdnv            <=  FAB of averaged primitive variables
+c     WLeft             => Left states of primitive variables
+c     WRight            => Right states of primitive variables
+c     idir              => Direction of face
+c     box               => Box
+c     rcomp             => Density component
+c     pcomp             => Pressure component
+c     wspecstart        => Start of primitive species components
+c     numspecies        => Number of species
+c     a1-a5L            => Coefficients for c_p for 200 < T < 1000
+c     a1-a5H            => Coefficients for c_p for 1000 < T < 6000
+c     Rn                => Vector of gas constants for each species
+c     ----------------------------------------------------------------------
+
+      subroutine COMBRIEMANNF(
+     &     CHF_FRA[Wgdnv],
+     &     CHF_CONST_FRA[WLeft],
+     &     CHF_CONST_FRA[WRight],
+     &     CHF_CONST_INT[idir],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[velcomp],      
+     &     CHF_CONST_INT[wspecstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_VR[a1L],
+     &     CHF_CONST_VR[a2L],
+     &     CHF_CONST_VR[a3L],
+     &     CHF_CONST_VR[a4L],
+     &     CHF_CONST_VR[a5L],
+     &     CHF_CONST_VR[a6L],
+     &     CHF_CONST_VR[a7L],
+     &     CHF_CONST_VR[a1H],
+     &     CHF_CONST_VR[a2H],
+     &     CHF_CONST_VR[a3H],
+     &     CHF_CONST_VR[a4H],
+     &     CHF_CONST_VR[a5H],
+     &     CHF_CONST_VR[a6H],
+     &     CHF_CONST_VR[a7H],
+     &     CHF_CONST_VR[Rn],
+     &     CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+      integer CHF_DDECL[i; j; k]
+      integer CHF_DDECL[inorm; itan1; itan2]
+      real_t pl,rhol,pr,rhor,cl,cr,wl,wr,wstar
+      real_t pstar,ustar,ro,po,uno,co,sgnm
+      real_t rstar,cstar,spout,spin,ushock,frac,gammastar
+      real_t unl,unr,gammal,gammar,tl,tr,rgasl,rgasr
+      real_t specinp(0:numspecies-1)
+      real_t specstar(0:numspecies-1), speco(0:numspecies-1)
+      real_t specl(0:numspecies-1), specr(0:numspecies-1)
+      real_t a1(0:numspecies-1), a2(0:numspecies-1), a3(0:numspecies-1)
+      real_t a4(0:numspecies-1), a5(0:numspecies-1)
+      real_t a6(0:numspecies-1), a7(0:numspecies-1)
+      real_t rgasstar, tstar, estar, hval, sumstar
+
+      integer spacedim
+      integer scomp, comp
+
+      spacedim = CH_SPACEDIM
+
+c     Internal Chombo solver, unknown origin
+
+      CHF_DTERM[
+      inorm = velcomp + idir;
+      itan1 = velcomp + mod(idir + 1,spacedim);
+      itan2 = velcomp + mod(idir + 2,spacedim)]
+
+      CHF_MULTIDO[box;i;j;k]
+c     Set the mass fractions for left and right states
+         rgasl = zero
+         rgasr = zero
+         do comp = 0, numspecies - 1
+            scomp = wspecstart + comp
+            specl(comp) = WLeft(CHF_IX[i;j;k],scomp)
+            specr(comp) = WRight(CHF_IX[i;j;k],scomp)
+            rgasl = rgasl + specl(comp)*Rn(comp)
+            rgasr = rgasr + specr(comp)*Rn(comp)
+         enddo
+c     Set the left states and calculate gamma right
+         pl   = max(smallp,WLeft(CHF_IX[i;j;k],pcomp))
+         rhol = max(smallr,WLeft(CHF_IX[i;j;k],rcomp))
+         unl  = WLeft(CHF_IX[i;j;k],inorm)
+         tl   = pl/(rhol*rgasl)
+         specinp = specl
+         call CALCGAMMA(gammal,tl,rgasl)
+c     Set the right states and calculate gamma left
+         pr   = max(smallp,WRight(CHF_IX[i;j;k],pcomp))
+         rhor = max(smallr,WRight(CHF_IX[i;j;k],rcomp))
+         unr  = WRight(CHF_IX[i;j;k],inorm)
+         tr   = pr/(rhor*rgasr)
+         specinp = specr
+         call CALCGAMMA(gammar,tr,rgasr)
+
+         cl = sqrt(gammal*pl/rhol)
+         cr = sqrt(gammar*pr/rhor)
+
+         wl = rhol*cl
+         wr = rhor*cr
+
+         pstar = (wr*pl + wl*pr + wl*wr*(unl - unr))/(wl + wr)
+         ustar = (wl*unl + wr*unr + pl - pr)/(wl + wr)
+
+         if (ustar .gt. zero) then
+            ro = rhol
+            po = pl
+
+            CHF_DTERM[
+            uno = unl;
+            Wgdnv(CHF_IX[i;j;k],itan1) = WLeft(CHF_IX[i;j;k],itan1);
+            Wgdnv(CHF_IX[i;j;k],itan2) = WLeft(CHF_IX[i;j;k],itan2)]
+
+            do comp = 0, numspecies - 1
+               speco(comp) = specl(comp)
+            enddo
+            co = cl
+            sgnm = one
+         else
+            ro = rhor
+            po = pr
+
+            CHF_DTERM[
+            uno = unr;
+            Wgdnv(CHF_IX[i;j;k],itan1) = WRight(CHF_IX[i;j;k],itan1);
+            Wgdnv(CHF_IX[i;j;k],itan2) = WRight(CHF_IX[i;j;k],itan2)]
+
+            do comp = 0, numspecies - 1
+               speco(comp) = specr(comp)
+            enddo
+            co = cr
+            sgnm = -one
+         endif
+
+         rstar = ro + (pstar - po)/co**2
+         rstar = max(rstar,smallr)
+
+c     Calculate gamma^* using Roe's average
+c     FIXME: using Roe's average for c_n and gamma^*
+         gammastar = (sqrt(rhol)*gammal + sqrt(rhor)*gammar)/
+     &        (sqrt(rhol) + sqrt(rhor))
+         rgasstar = zero
+         do comp = 0, numspecies - 1
+            specstar(comp) = (sqrt(rhol)*specl(comp) +
+     &           sqrt(rhor)*specr(comp))/(sqrt(rhol) + sqrt(rhor))
+            rgasstar = rgasstar + specstar(comp)*Rn(comp)
+         enddo
+         
+         cstar = sqrt(abs(gammastar*pstar/rstar))
+         wstar = half*(cstar*rstar + co*ro)
+
+         spout = co    - sgnm*uno
+         spin  = cstar - sgnm*ustar
+
+         ushock = wstar/rstar - sgnm*ustar
+
+         if (pstar.gt.po) then
+            spout = ushock
+            spin  = ushock
+         endif
+
+         frac = ((one + (spout + spin)/max(spout-spin,small))/two)
+         frac = max(zero,min(one,frac))
+
+         Wgdnv(CHF_IX[i;j;k],WRHO)  = ro  + frac*(rstar - ro)
+         Wgdnv(CHF_IX[i;j;k],inorm) = uno + frac*(ustar - uno)
+         Wgdnv(CHF_IX[i;j;k],WPRES) = po  + frac*(pstar - po)
+         do comp = 0, numspecies - 1
+            scomp = wspecstart + comp
+            Wgdnv(CHF_IX[i;j;k],scomp) = speco(comp) + frac*(specstar(comp)
+     &           - speco(comp))
+         enddo
+
+         if (spout.le.zero) then
+            Wgdnv(CHF_IX[i;j;k],WRHO)  = ro
+            Wgdnv(CHF_IX[i;j;k],inorm) = uno
+            Wgdnv(CHF_IX[i;j;k],WPRES) = po
+            do comp = 0, numspecies - 1
+               scomp = wspecstart + comp
+               Wgdnv(CHF_IX[i;j;k],scomp) = speco(comp)
+            enddo
+         endif
+
+         if (spin.gt.zero) then
+            Wgdnv(CHF_IX[i;j;k],WRHO)  = rstar
+            Wgdnv(CHF_IX[i;j;k],inorm) = ustar
+            Wgdnv(CHF_IX[i;j;k],WPRES) = pstar
+            do comp = 0, numspecies - 1
+               scomp = wspecstart + comp
+               Wgdnv(CHF_IX[i;j;k],scomp) = specstar(comp)
+            enddo
+         endif
+
+         Wgdnv(CHF_IX[i;j;k],WRHO)  = max(Wgdnv(CHF_IX[i;j;k],WRHO) ,smallr)
+         Wgdnv(CHF_IX[i;j;k],WPRES) = max(Wgdnv(CHF_IX[i;j;k],WPRES),smallp)
+      CHF_ENDDO
+
+      return
+
+      contains
+c     Routine to calculate temperature dependent gamma
+      subroutine CALCGAMMA(
+     &     CHF_REAL[gammaval],
+     &     CHF_CONST_REAL[Tval],
+     &     CHF_CONST_REAL[rgas])
+      real_t cp, Tinv, Tinv2
+      call SETCOEFFS(Tval)
+      cp = zero
+      Tinv = one/Tval
+      Tinv2 = Tinv/Tval
+      do comp = 0, numspecies - 1
+         cp = cp + specinp(comp)*Rn(comp)*(a1(comp)*Tinv2
+     &        +a2(comp)*Tinv+a3(comp)+
+     &        Tval*(a4(comp)+Tval*(a5(comp)+
+     &        Tval*(a6(comp)+Tval*a7(comp)))))
+      enddo
+      gammaval = cp/(cp - rgas)
+      end subroutine
+      
+c     Routine to determine coefficient values for calculating c_p
+      subroutine SETCOEFFS(CHF_CONST_REAL[Tinp])
+      if(Tinp .ge. 1000.0d0) then
+         do comp = 0, numspecies - 1
+            a1(comp) = a1H(comp)
+            a2(comp) = a2H(comp)
+            a3(comp) = a3H(comp)
+            a4(comp) = a4H(comp)
+            a5(comp) = a5H(comp)
+            a6(comp) = a6H(comp)
+            a7(comp) = a7H(comp)
+         enddo
+      else
+         do comp = 0, numspecies - 1
+            a1(comp) = a1L(comp)
+            a2(comp) = a2L(comp)
+            a3(comp) = a3L(comp)
+            a4(comp) = a4L(comp)
+            a5(comp) = a5L(comp)
+            a6(comp) = a6L(comp)
+            a7(comp) = a7L(comp)
+         enddo
+      endif
+      end subroutine
+      
+      end
+
+c     ----------------------------------------------------------------------
+c     Compute the speed of sound for thermally perfect gas
+c     c                <=  Speed of sound
+c     Wc                => Cell-centered primitive values
+c     box               => Box defining where to compute temperature
+c     rcomp             => Density index for primitive variables
+c     pcomp             => Pressure index for primitive variables
+c     wcompstart        => First primitive species component
+c     numspecies        => Number of species
+c     midT              => T value related to coefficient intervals      
+c     a1-a7L            => Coefficients for c_p for 200 < T < midT
+c     a1-a7H            => Coefficients for c_p for midT < T < 6000
+c     Rn                => Vector of gas constants for each species
+c     ----------------------------------------------------------------------
+
+      subroutine SOUNDSPEEDPRIMCOMBF(
+     &     CHF_FRA1[c],
+     &     CHF_CONST_FRA[Wc],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[wcompstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_REAL[midT],
+     &     CHF_CONST_VR[a1L],
+     &     CHF_CONST_VR[a2L],
+     &     CHF_CONST_VR[a3L],
+     &     CHF_CONST_VR[a4L],
+     &     CHF_CONST_VR[a5L],
+     &     CHF_CONST_VR[a6L],
+     &     CHF_CONST_VR[a7L],
+     &     CHF_CONST_VR[a1H],
+     &     CHF_CONST_VR[a2H],
+     &     CHF_CONST_VR[a3H],
+     &     CHF_CONST_VR[a4H],
+     &     CHF_CONST_VR[a5H],
+     &     CHF_CONST_VR[a6H],
+     &     CHF_CONST_VR[a7H],
+     &     CHF_CONST_VR[Rn],
+     &     CHF_BOX[box])
+
+      integer CHF_AUTODECL[i]
+      integer scomp, comp
+      real_t rho, T, pres, gamma, rgas, cp, Tinv, Tinv2
+      real_t cn(0:numspecies-1)
+
+      CHF_AUTOMULTIDO[box;i]
+         rho = Wc(CHF_AUTOIX[i],rcomp)
+         pres = Wc(CHF_AUTOIX[i],pcomp)
+         rgas = zero
+         do comp = 0, numspecies - 1
+            scomp = wcompstart + comp
+            cn(comp) = Wc(CHF_AUTOIX[i],scomp)
+            rgas = rgas + cn(comp)*Rn(comp)
+         enddo
+         T = pres/(rho*rgas)
+         Tinv = one/T
+         Tinv2 = Tinv/T
+         cp = zero
+         if(T .ge. midT) then
+            do comp = 0, numspecies - 1
+               cp = cp + cn(comp)*Rn(comp)*
+     &              (a1H(comp)*Tinv2 + a2H(comp)*Tinv+a3H(comp)+T*
+     &              (a4H(comp)+T*(a5H(comp)+T*(a6H(comp) +
+     &              T*a7H(comp)))))
+            enddo
+         else
+            do comp = 0, numspecies - 1
+               cp = cp + cn(comp)*Rn(comp)*
+     &              (a1L(comp)*Tinv2 + a2L(comp)*Tinv+a3L(comp)+T*
+     &              (a4L(comp)+T*(a5L(comp)+T*(a6L(comp) +
+     &              T*a7L(comp)))))
+            enddo
+         endif
+         gamma = cp/(cp - rgas)
+         c(CHF_AUTOIX[i]) = sqrt(gamma*pres/rho)
+      CHF_ENDDO
+
+      return
+      end

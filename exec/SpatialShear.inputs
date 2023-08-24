@@ -1,0 +1,366 @@
+#====================================================================
+#
+# Spatially evolving shear-layer problem
+#
+# Note: Low velocity-ratios between the two shear-layer streams
+#       work with outflow boundary conditions. High velocity-ratios
+#       currently require the problem to be periodic.
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/SpatiallyEvolvingShear.000000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 500
+file.plot_prefix = plot/SpatiallyEvolvingShear.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 400
+file.checkpoint_prefix = checkpoint/SpatiallyEvolvingShear.
+
+file.plot_mapped_derivs = 1
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemSpatiallyEvolvingShear
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+# Plain mixing layer problem
+physics.fluid_models = inertial
+
+# Turbulence model
+#turb.turb_model = LES
+
+# LES subgrid-scale model
+#turb.sgs_model = Smagorinsky
+#turb.sgs_model = StretchedVortex
+
+# Stretched-vortex model options
+
+# OrientationModel = 0, 1, or 2
+#turb.vortex_orientation_model = 0
+
+# VortexProportion is [0,1]
+#turb.vortex_proportion = 0
+
+# Correction for pressure from SVS model estimate of SGS KE
+#turb.use_sgs_ke_pressure_correction = 0
+
+# Method for approximating SGS KE: 0 = Voelkl, Chung, Pullin method
+#                                  1 = Mattner method
+#turb.sgs_kinetic_energy_approximation = 0
+
+#--------------------------------------------------------------------
+# Thermally Perfect Multispecies (when ibc.combustion = 1)
+#--------------------------------------------------------------------
+
+# # If schmidt_number > 0., then schmidt number is used
+# #therm.schmidt_num = 1.
+# # Set if some species specific Lewis numbers are used (optional: default true)
+# therm.multiple_lewis_numbers = true
+# therm.lewis_number_file = Mechanism_files/speciesLewisNumbers.inp
+
+# # Default uses the Lewis numbers for each species defined in
+# # Mechanism_files/speciesLewisNumbers.inp
+# therm.lewis_num = 1.
+
+# # Increasing the cutoff temperature so that reactions are not solved
+# # in areas with low temperatures (where reactions would not occur anyway)
+# # (optional: default 250)
+# therm.cutoff_temperature = 298.0
+
+# therm.species = H2 H O2 O OH HO2 H2O CH3 CH4 CO CO2 CH2O 
+
+# therm.num_of_reactions = 38
+
+# therm.reaction_file = Mechanism_files/chem.txt
+# therm.thermo_file = Mechanism_files/therm.txt
+# # Specify type of thermodynamic file being read in. 
+# # 0: 7-coefficient NASA polynomials for Cp, 1: 5-coefficient Chemkin polynomials for Cp
+# # (optional: default 0)
+# therm.thermo_file_format = 1
+
+# # Correct species to ensure realizability (sum rho_i = rho & rho_i > 0)
+# therm.use_species_correction = true
+
+#--------------------------------------------------------------------
+# Solution states
+#--------------------------------------------------------------------
+
+state.names = "inlet_lower" "inlet_mean" "inlet_upper" "outlet" "wall"
+
+state.inlet_lower_frame-velocity = 200.0 0.0 0.0
+state.inlet_lower_density = 1.225
+state.inlet_lower_velocity = 200.0 0.0 0.0
+state.inlet_lower_temperature = 288.15
+state.inlet_lower_pressure = 101325.
+
+state.inlet_upper_frame-velocity = 20.0 0.0 0.0
+state.inlet_upper_density = 1.225
+state.inlet_upper_velocity = 20.0 0.0 0.0
+state.inlet_upper_temperature = 288.15
+state.inlet_upper_pressure = 101325.
+
+state.inlet_mean_frame-velocity = 110.0 0.0 0.0
+state.inlet_mean_density = 1.225
+state.inlet_mean_velocity = 110.0 0.0 0.0
+state.inlet_mean_temperature = 288.15
+state.inlet_mean_pressure = 101325.
+
+state.outlet_frame-velocity = 110.0 0.0 0.0
+state.outlet_density = 1.225
+state.outlet_velocity = 110.0 0.0 0.0
+state.outlet_temperature = 288.15
+state.outlet_pressure = 101325.
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Define which directions are periodic
+ibc.periodicity = 0 0 1
+
+# Initial values
+ibc.initial_state = inlet_mean
+ibc.initial_state_inlet_high = inlet_upper
+ibc.initial_state_inlet_low  = inlet_lower
+
+# Define boundary conditions for non-periodic directions, lo and hi
+ibc.bc_type-default = AdiabaticWall
+ibc.bc_state-default = wall
+# Default state_relax and wave_relax is 1
+# Parameters vary from 0 to 1: 0 = reflecting, 1 = non-reflecting
+ibc.bc_state_relax-default = 0.75
+ibc.bc_wave_relax-default = 0.75
+
+ibc.bc_type-block_0_x_lo = RelaxedCBCIn
+ibc.bc_state-block_0_x_lo = inlet
+
+ibc.bc_type-block_0_x_hi = RelaxedCBCOut
+ibc.bc_state-block_0_x_hi = outlet
+
+ibc.bc_type-block_0_y_hi = RelaxedCBCFar
+ibc.bc_state-block_0_y_hi = inlet_upper
+
+ibc.bc_type-block_0_y_lo = RelaxedCBCFar
+ibc.bc_state-block_0_y_lo = inlet_upper
+
+# ibc.bc_type-block_0_x_lo = Inflow
+# ibc.bc_state-block_0_x_lo = inlet
+
+# ibc.bc_type-block_0_x_hi = Outflow
+# ibc.bc_state-block_0_x_hi = outlet
+
+# ibc.bc_type-block_0_y_hi = Farfield
+# ibc.bc_state-block_0_y_hi = inlet_upper
+
+# ibc.bc_type-block_0_y_lo = Farfield
+# ibc.bc_state-block_0_y_lo = inlet_upper
+
+# Define order of BC (default: 4)
+ibc.bc_order-default = 1
+
+# Momentum thickness -- physical length
+ibc.momentum_thickness = 0.005
+
+# Shear layer position -- percent of single-layer height
+# 0.5 pushes the layer all the way to the edge of the domain
+ibc.shearLayer_position = -0.25
+
+# Transition between densities in different streams
+ibc.density_transition_thickness = 0.
+
+# Transition between species in different streams
+ibc.species_transition_thickness = 0.
+
+# Single shear layer case? -- always double shear actually
+ibc.single_shear_layer = 0
+
+# Reacting flow case?
+ibc.combustion = 0
+
+# Perturbation modes (high layer) to start turbulence -- wavenumbers
+ibc.modes_x_hi  = 8 4 2 1
+ibc.modes_xy_hi = 8 4 2 1
+ibc.modes_z_hi  = 4 2 1 0
+
+# Perturbation modes (lower layer) to start turbulence -- wavenumbers
+ibc.modes_x_lo  = 8 4 2 1
+ibc.modes_xy_lo = 8 4 2 1
+ibc.modes_z_lo  = 4 2 1 0
+
+# Mode amplitudes (high layer) -- fraction of single shear layer thickness
+# be careful -- these add together
+ibc.mode_amplitude_x_hi  = 0.1  0.03 0.03 0.01
+ibc.mode_amplitude_xy_hi = 0.05 0.03 0.03 0.03
+ibc.mode_amplitude_z_hi  = 0.05 0.03 0.03 0.01
+
+# Mode amplitudes (lower layer) -- fraction of single shear layer thickness
+ibc.mode_amplitude_x_lo  = 0.1  0.03 0.03 0.01
+ibc.mode_amplitude_xy_lo = 0.05 0.03 0.03 0.03
+ibc.mode_amplitude_z_lo  = 0.05 0.03 0.03 0.01
+
+# Mode phase shifts (high layer)
+ibc.mode_phaseShift_x_hi  = 1.295 1.867 2.550 1.920
+ibc.mode_phaseShift_xy_hi = 2.539 1.164 0.845 1.784
+ibc.mode_phaseShift_z_hi  = 0.709 3.022 2.209 2.882
+
+# Mode phase shifts (lower layer)
+ibc.mode_phaseShift_x_lo  = 3.311 2.793 3.426 3.133
+ibc.mode_phaseShift_xy_lo = 1.727 3.928 3.830 3.828
+ibc.mode_phaseShift_z_lo  = 1.013 1.025 2.138 2.288
+
+# Tag method -- options: gradient, value, vorticity
+#                        vms, vms_vorticity
+ibc.tag_type = vorticity
+# Tag variable
+# ibc.tag_variable = density
+# Tag threshold
+ibc.tag_threshold = 1.E4
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 256 64 32
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0. 0. 0.
+
+# Physical domain length
+grid.domain_length = 0.686812 0.171703 0.0858515
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = 1.7894E-8
+# fluid.mu = -1
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = 2.5326E-5
+# fluid.K = -1
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 50000
+
+# Initial solution time (optional: default 0.0)
+# sol.initial_time = 0.
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time, 3.1831 = 20 characteristic times)
+sol.max_time = 10.
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-3
+
+# Limit on the time step growth (optional: default 1.1)
+#sol.max_dt_growth = 1.
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 1.0
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 0.8
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# limit.limit_face_values = 1
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default set by limit.method)
+# limit.face_order = 4
+
+# Convolution and deconvolution flattening
+# Flattening of convolution operations
+# Options are true, false, and 2nd (optional: default false)
+# limit.convolution_flattening = 2nd
+
+# Flattening of deconvolution operations
+# Options are true, false, and 2nd (optional: default false)
+# limit.deconvolution_flattening = 2nd
+
+# Other limiting options set by limit.method
+#limit.PPM_limiter = 0
+#limit.limit_face_values = 0
+#limit.use_flattening = 0
+#limit.extra_boundary_limiting = 1
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 0
+
+# Artificial viscosity parameter (optional: default 0.3)
+limit.artificial_viscosity_coef = 0.
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+limit.fourth_order_artificial_viscosity_coef = 0.
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 4 2 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 2 2 2 2
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 2
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1

@@ -1,0 +1,61 @@
+syntax: glob
+*~
+*.orig
+*.o
+*.d
+*.f
+*.C
+*.s
+*.a
+*F_F.H
+*.cpre
+*.hdf5
+*.visit
+visitlog.py
+*.mpeg
+*.log
+*.ex
+*.cubin
+*.out
+*.dummy
+*.svn
+*.core
+CVS
+.cvsignore
+*.aux
+*.dvi
+*.png
+*.webm
+pout.*
+profile.*.bin
+
+# Ignore o p d f directories
+syntax: regexp
+^.*?/[opdf]/
+
+# Ignore files related to load balancing
+^.*/LB.txt
+
+# Ignore any kind of timing
+^.*time.table.*$
+
+# Ignore rose directories
+syntax: regexp
+^.*?/rose/
+
+# Ignore files starting with # and .#
+syntax: regexp
+^.*?/\#[^/]*$
+^.*?/\.\#[^/]*$
+
+# Exclude doxygen output
+syntax: regexp
+^doc/code
+
+# Exclude documentation
+syntax: regexp
+^doc/.*\.pdf
+
+# Ignore concepts
+syntax: regexp
+^concepts/

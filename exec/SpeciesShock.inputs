@@ -1,0 +1,236 @@
+#====================================================================
+#
+# Basic Testing
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/specshocktube.005000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_period = 5.0E-6
+file.plot_prefix = plot/specshocktube.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = -1
+file.checkpoint_prefix = checkpoint/specshocktube.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemSpecShock
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+physics.fluid_models = multispecies inertial
+
+#--------------------------------------------------------------------
+# Thermally Perfect Multispecies
+#--------------------------------------------------------------------
+
+# If schmidt_number > 0., then schmidt number is used
+therm.schmidt_num = 1.
+# Default uses the Lewis numbers for each species defined in
+# Mechanism_files/speciesLewisNumbers.inp
+therm.lewis_num = 1.
+# Set if some species specific Lewis numbers are used (optional: default true)
+#therm.multiple_lewis_numbers = false
+
+# List of species for problem
+therm.species = O2 N2 He
+
+# Using species correction (default: true)
+#therm.use_species_correction = false
+
+# Which Riemann solver to use, adaptive, exact, or approx
+# (default: adaptive)
+#therm.riemann_solver = exact
+
+#--------------------------------------------------------------------
+# IBC
+#--------------------------------------------------------------------
+
+ibc.tag_type = gradient gradient
+ibc.tag_threshold = 0.03 0.1
+ibc.tag_variable = temperature density
+ibc.temperature_right = 300.
+ibc.pressure_right = 101325.
+ibc.right_specs = O2 N2
+ibc.right_mfs = 0.25 0.75
+ibc.temperature_left = 900.
+ibc.pressure_left = 1.E7
+ibc.left_specs = He
+ibc.left_mfs = 1.
+
+# Initial smearing
+ibc.init_smearing_parameter = 1.E8
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 256 8 8
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0.0 0.0 0.0
+
+# Physical domain length
+grid.domain_length = 3.125E-1 9.765625E-3 9.765625E-3
+
+# Coordinate system (comment out to use Cartesian)
+# coordsys.type = warped
+# coordsys.scale = 0.1 0.1 0.0
+# coordsys.relative_tolerance = 1.0e-12
+# coordsys.absolute_tolerance = 1.0e-13
+# coordsys.maximum_iterations = 100
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Reynolds number (optional: default 1.)
+fluid.Re = 200
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = -1.
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = -1.
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 1000
+
+# Initial solution time (optional: default 0.0)
+sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 5.1E-5
+
+# Set initial time step size
+#sol.initial_dt = 2.E-7
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#For a mesh sized 64 and 2 levels of refinement at x2
+#sol.fixed_dt = 2.E-6
+
+# Limit on the time step growth (optional: default 1.1)
+#sol.max_dt_growth = 1.1
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 0.8
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+# Note: FourthOrderPPM uses 4th-order construction by default
+limit.method = FourthOrderPPM
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default set by method)
+#limit.face_order = 5
+
+# Face limiting
+limit.limit_face_values = 1
+
+# Convolution and deconvolution flattening
+
+# Use total DC flattening
+# This means convolution and deconvolution flattening is used on cells and faces
+# Can be overwritten by the specific selections below
+limit.total_dc_flattening = true
+
+# Flattening of convolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.convolution_flattening = false
+
+# Flattening of deconvolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.deconvolution_flattening = false
+
+# Or these can be set individually, options are true, false, and 2nd
+#limit.flatten_cell_convolution = false
+#limit.flatten_cell_deconvolution = 2nd
+#limit.flatten_face_convolution = false
+#limit.flatten_face_deconvolution = true
+
+# Tolerance for flattening directly
+# (optional: default 0.2)
+#limit.dc_flat_tol = 0.1
+
+# Apply face construction order reduction
+# Automatically applied when total dc flattening is true
+# and face value limiting is on
+#limit.use_fcor = 1
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity = 0.3
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 2
+
+# Refinement ratio between levels
+amr.ref_ratio = 4 4 2
+
+# Regridding interval for each level
+amr.regrid_interval = 8 8 8
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 8
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1

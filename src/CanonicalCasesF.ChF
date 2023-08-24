@@ -1,0 +1,124 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+c ----------------------------------------------------------------------
+c  This file includes canonical flow cases with known solution
+c  for code verification. 
+c ----------------------------------------------------------------------
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+     
+      subroutine BLASIUS(
+     &     CHF_FRA[YFab],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[X],
+     &     CHF_CONST_REAL[dx],
+     &     CHF_CONST_REAL[uInfty],
+     &     CHF_CONST_REAL[nu],
+     &     CHF_CONST_INT[dir])
+      
+      integer CHF_AUTODECL[i]
+      integer cellIdx(0:CH_SPACEDIM-1)
+
+      integer, parameter :: NEqn = 3
+      integer J, K, itr, cnt
+      real_t eta, H, h1, h2, YDis, XDis, etaIncrmt 
+      real_t segments, deta 
+      real_t, DIMENSION(NEqn) :: Y, F 
+C     bdry properties
+      real_t delta, theta, deltaStar, tauWall, CF, CD, deltaEta
+      LOGICAL firstCell
+      
+ 
+      CHF_DTERM[
+      equivalence(i0, cellIdx(0));
+      equivalence(i1, cellIdx(1));
+      equivalence(i2, cellIdx(2))]
+      
+C     pre-set a small deta  
+      deta = 0.001
+      
+
+      delta = 0.d0
+      theta = 0.d0
+      deltaStar = 0.d0
+      tauWall = 0.d0
+      CF = 0.d0
+      CD = 0.d0
+      firstCell = .true.
+
+      CHF_AUTOMULTIDO[box;i]
+C     get the location normal to the wall
+C     in the bdry layer  
+       
+      YDis = X(CHF_AUTOIX[i], dir);
+C     get the location along the wall      
+      XDis = 0.d0
+      do J = 0, CH_SPACEDIM-1
+         XDis = XDis + X(CHF_AUTOIX[i],J)*X(CHF_AUTOIX[i],J)
+      enddo
+      XDis = XDis - X(CHF_AUTOIX[i],dir)*X(CHF_AUTOIX[i],dir) 
+      XDis  = sqrt(XDis)
+C     Note that eta ->[0, 10]
+C     The ODE is integrated from 0 to the cell of interest      
+C     get the nondimensional parameter eta
+      eta = YDis*sqrt(uInfty/(2.0d0*nu*XDis))
+      
+C     bc conditions at eta = 0
+      Y(1) = 0.46960000000000002
+      Y(2) = 0.d0
+      Y(3) = 0.d0
+      etaIncrmt = 0.d0
+
+      h1 = 0.5*dx*sqrt(uInfty/(2.d0*nu*XDis))
+      h2 = dx*sqrt(uInfty/(2.d0*nu*XDis))
+C     First cell to the wall is 0.5dx
+C     Second and onwards is  dx
+      segments = h1/deta
+      itr = int(segments) 
+      H = deta
+  
+C     Compute the bdry f's at a specific x location
+C      if (cellIdx(0) == 16) then 
+      if (eta .lt. 10.0d0) then
+         do J = 0, cellIdx(dir)
+            do cnt = 0, itr-1
+               CALL RK4(F, Y, H)
+               etaIncrmt = etaIncrmt + H
+            enddo
+            H = 2*deta
+         enddo
+         H = eta - etaIncrmt
+         CALL RK4(F, Y, H)
+         
+         do K = 1, NEqn
+            YFab(CHF_AUTOIX[i], K-1) = Y(K)
+         enddo
+c     print *, eta, Y(1),Y(2),Y(3)
+C     compute the bdry properties
+C     ---------------------------
+         if (firstCell) then
+            deltaEta = h1
+         else
+            deltaEta = h2
+         endif
+         if ((theta .ge. 0.d0) .and. (deltaStar .ge. 0.d0)) then
+            theta = theta + sqrt(2.d0)*Y(2)*(1.d0 - Y(2))*deltaEta
+            deltaStar = deltaStar+ sqrt(2.d0)*(1.d0 - Y(2))*deltaEta
+         endif
+         firstCell = .false.
+C     ------------------------------
+C         print *,CHF_AUTOIX[i],eta,Y(2),deltaEta,theta,deltaStar  
+      endif
+C      endif
+      CHF_ENDDO
+      
+      return
+      end
+      
+       
+      

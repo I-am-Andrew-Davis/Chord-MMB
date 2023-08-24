@@ -1,0 +1,288 @@
+#====================================================================
+#
+# Basic Testing
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/cookstove.050000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_period = 5.E-6
+file.plot_prefix = plot/cookstove.plot.
+#file.plot_JU = 1
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 5000
+file.checkpoint_prefix = checkpoint/cookstove.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemBurnerTest
+
+#--------------------------------------------------------------------
+# Thermally Perfect Multispecies
+#--------------------------------------------------------------------
+
+# If schmidt_number > 0., then schmidt number is used
+#therm.schmidt_num = 1.
+# Default uses the Lewis numbers for each species defined in
+# Mechanism_files/speciesLewisNumbers.inp
+therm.lewis_num = 1.
+
+# Species list, corresponds to initialization in next section
+# The last species listed is where the error placed
+therm.species = O2 H2 CO2 HCO OH H O HO2 H2O CO N2
+
+# Number of reactions, should match the number in the input file
+therm.num_of_reactions = 21
+
+# Reaction mechanism input file, should contain the species and number of
+# reactions specified above
+#therm.reaction_file = Mechanism_files/Reduced_21_step_H2.inp
+
+# Use species correction (optional: default true)
+therm.use_species_correction = true
+
+# Time to allow reactions
+#therm.reaction_start_time = 0.4005
+
+# Do not solve reactions for temperatures below this one
+therm.cutoff_temperature = 800.
+
+# Resolve for Gibbs free energy only when temperature
+# has changed by this amount
+therm.temperature_diff_resolve = 10.
+
+# Which Riemann solver to use, adaptive, exact, or approx
+# (optional: default adaptive)
+#therm.riemann_solver = exact
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 32 128 32
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0.0 0.0 0.0
+
+# Physical domain length
+grid.domain_length = 0.1016 0.4064 0.1016
+
+# Coordinate system (comment out to use Cartesian)
+coordsys.type = logstretch
+coordsys.shift = 0. -2.5 0.
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+fluid.mu = -1.
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+fluid.K = -1.
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 50000
+
+# Initial time step
+#sol.initial_dt = 8.0E-7
+
+# Initial solution time (optional: default 0.0)
+#sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 1.34
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-9
+
+# Limit on the time step growth (optional: default 1.1)
+sol.max_dt_growth = 1.1
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 0.85
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 0.25
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening)
+# Options are FourthOrderPPM, FourthOrderCentral, FirstOrderGodunov
+# (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Apply face limiting
+limit.limit_face_values = 1
+
+# Convolution and deconvolution flattening
+
+# Use total DC flattening
+# This means convolution and deconvolution flattening is used on cells and faces
+# Can be overwritten by the specific selections below
+limit.total_dc_flattening = true
+
+# Flattening of convolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.convolution_flattening = false
+
+# Flattening of deconvolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.deconvolution_flattening = false
+
+# Or these can be set individually, options are true, false, and 2nd
+#limit.flatten_cell_convolution = false
+#limit.flatten_cell_deconvolution = 2nd
+#limit.flatten_face_convolution = false
+#limit.flatten_face_deconvolution = true
+
+# Tolerance for flattening directly
+# (optional: default 0.2)
+#limit.dc_flat_tol = 0.1
+
+# Apply face construction order reduction
+# Automatically applied when total dc flattening is true
+# and face value limiting is on
+#limit.use_fcor = 1
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3).  Note
+# that 0.42 is 0.3*gamma
+#limit.fourth_order_artificial_viscosity_coef = 0.42
+
+# Provide extra limiting near boundaries
+# Highly recommended for this problem
+limit.extra_bound_lim = 1
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 2
+
+# Refinement ratio between levels
+amr.ref_ratio = 4 2
+
+# Regridding interval for each level
+amr.regrid_interval = 8 8
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 2
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Initial pressure and temperature, density is solved for
+ibc.init_pressure = 101325.
+ibc.init_temperature = 298.
+ibc.init_velocity = 0. 0.075 0.
+# Initial mass fraction of the products
+ibc.init_specs = N2 CO H2 CO2
+ibc.init_mfs = 0.4101866 0.3600046 0.0224546 0.2073542
+
+ibc.periodicity = 0 0 1
+
+# Define boundary conditions
+# Note: x-direction boundary conditions will only apply to the jets,
+ibc.lo_bc_x = Dirichlet
+ibc.hi_bc_x = Dirichlet
+ibc.lo_bc_x_order = 4
+ibc.hi_bc_x_order = 4
+
+# Set left jet mass fractions, temperature, and jet velocities
+ibc.lo_bc_temp_x = 1900.
+ibc.lo_bc_specs_x = N2 O2
+ibc.lo_bc_mfs_x = 0.767 0.233
+ibc.lo_bc_vel_x = 4.96 0. 0.
+
+# Set right jet mass fractions, temperature, and jet velocities
+ibc.hi_bc_temp_x = 1900.
+ibc.hi_bc_specs_x = N2 O2
+ibc.hi_bc_mfs_x = 0.767 0.233
+ibc.hi_bc_vel_x = -4.96 0. 0.
+
+# Note: the wall boundaries are set in the code and cannot be modified by
+# the input file
+
+# Set upper and lower boundaries
+ibc.lo_bc_y = Dirichlet
+ibc.lo_bc_temp_y = 313.
+ibc.lo_bc_vel_y = 0. 0.075 0.
+ibc.lo_bc_specs_y = N2 CO H2 CO2
+ibc.lo_bc_mfs_y = 0.4101866 0.3600046 0.0224546 0.2073542
+ibc.lo_bc_y_order = 1
+
+ibc.hi_bc_y = Extrapolated
+ibc.hi_bc_pres_y = 101325.
+ibc.hi_bc_temp_y = 298.
+ibc.hi_bc_vel_y = 0. 0.075 0.
+ibc.hi_bc_specs_y = N2 CO H2 CO2
+ibc.hi_bc_mfs_y = 0.4101866 0.3600046 0.0224546 0.2073542
+ibc.hi_bc_y_order = 1
+# Jet location relative to the bottom of the viewing window
+ibc.jet_location = 0.0492
+# Jet length
+ibc.jet_length = 0.0016
+# Viewing window size
+ibc.viewer_size = 0.1016
+# Viewing window bottom location
+ibc.viewer_bottom = 0.025
+# Tagging
+# If fixed_ref is false, then set the threshold and tag variable
+ibc.tag_threshold = 0.001
+ibc.tag_variable = temperature

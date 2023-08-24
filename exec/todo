@@ -1,0 +1,13 @@
+1) Plot output
+  Vorticity
+  writeJ
+  writeExact
+  writeError
+
+Q) Can you have ./Chombo/releasedExamples/AMRGodunov/srcPolytropic/PolytropicPhysicsF.ChF and ./Chombo.svn/lib/src/MOLAMRTimeDependent/PolytropicPhysicsF.ChF
+
+2) Put a check to ensure the relative domain sizes corresponds to the number of grid points in each direction
+
+3) Add a divergence check
+4) Add a limiter for the conversion of cell-averaged U to cell-centered U
+5) Fix the chemical time step

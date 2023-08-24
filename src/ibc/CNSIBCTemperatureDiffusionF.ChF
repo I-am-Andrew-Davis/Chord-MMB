@@ -1,0 +1,62 @@
+C       _______               __
+C      / ___/ /  ___  __  ___/ /
+C     / /__/ _ \/ _ \/ _\/ _  /
+C     \___/_//_/\___/_/  \_._/
+C     Please refer to Copyright.txt, in Chord's root directory.
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+
+c ----------------------------------------------------------------------
+c  Solves the exact solution of the flow
+c
+c  U                <=  Conservative momentum equation
+c  box               => Where to initialize/solve
+c  X                 => Physical locations normal to the wall
+c  t                 => Time
+c  h                 => Height of domain
+c  gasR              => Universal gas constant
+c  rho               => Density
+c  kappa             => Thermal conductivity
+c  hit               => Temperature of upper wall
+c  lot               => Temperature of lower wall
+c  nmax              => Maximum number of iterations to solve
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCTEMPERATUREEXACTSOL(
+     &     CHF_FRA[U],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA1[X],
+     &     CHF_CONST_INT[engcomp],
+     &     CHF_CONST_REAL[t],
+     &     CHF_CONST_REAL[h],
+     &     CHF_CONST_REAL[gasR],
+     &     CHF_CONST_REAL[rho],
+     &     CHF_CONST_REAL[alpha],
+     &     CHF_CONST_REAL[thi],
+     &     CHF_CONST_REAL[tlo],
+     &     CHF_CONST_INT[nmax])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+      integer n
+      real_t cn, bn, sum, temperature, pres, y, delt
+
+      delt = thi - tlo
+
+      CHF_AUTOMULTIDO[box;i]
+         y = X(CHF_AUTOIX[i])
+         sum = zero
+         do n = 1, nmax
+            cn = n*Pi/h
+            bn = -two*delt*(-cn*h*cos(cn*h))/(h**2*cn**2)
+            sum = sum + bn*sin(cn*y)*exp(-alpha*cn**2*t)
+         enddo
+         temperature = sum + y/h*delt + tlo
+         pres = rho*gasR*temperature
+         U(CHF_AUTOIX[i], engcomp) = pres/(gamma - one)
+      CHF_ENDDO
+
+      return
+      end

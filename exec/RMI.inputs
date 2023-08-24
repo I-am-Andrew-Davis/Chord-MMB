@@ -1,0 +1,253 @@
+#====================================================================
+#
+# Basic Testing
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/rmi.050000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 50
+file.plot_prefix = plot/rmi.plot.
+#file.plot_JU = 1
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 250
+file.checkpoint_prefix = checkpoint/rmi.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemRMI
+
+#--------------------------------------------------------------------
+# Thermally Perfect Multispecies
+#--------------------------------------------------------------------
+
+# If schmidt_number > 0., then schmidt number is used
+#therm.schmidt_num = 1.
+# Set if some species specific Lewis numbers are used (optional: default true)
+therm.multiple_lewis_numbers = false
+# Default uses the Lewis numbers for each species defined in
+# Mechanism_files/speciesLewisNumbers.inp
+therm.lewis_num = 1.
+
+# Increase the speed of the solution by the following:
+# 1. Increasing the cutoff temperature so that reactions are not solved
+# in areas with low temperatures (where reactions would not occur anyway)
+# (optional: default 250)
+therm.cutoff_temperature = 298.0
+# 2. Increase the temperature resolve difference. This means that values
+# dependent on temperature are only solved again if the temperature varies
+# by this value (optional: default 1.0)
+therm.temperature_diff_resolve = 3.0
+
+# Species list
+therm.species = H2 OH H O H2O2 HO2 H2O O2 N2
+
+# Turn species correction off
+therm.use_species_correction = true
+
+# Number of reactions, should match the number in the input file
+therm.num_of_reactions = 19
+
+# Reaction mechanism input file, should contain the species and number of
+# reactions specified above
+therm.reaction_file = Mechanism_files/refH2model.inp
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Initial location of the shock
+ibc.shock_loc = 0.04
+# Wave length of interface
+ibc.lambda = 0.06
+# Density of H2
+ibc.rho_h2 = 0.08
+# Density of O2
+ibc.rho_o2 = 0.24
+# FIXME: these should be a Mach number instead
+# Pressure ratio across the shock
+ibc.pres_ratio = 1.516
+# Density ratio across the shock
+ibc.rho_ratio = 1.3427
+# Velocity behind the shock
+ibc.shock_vel = 404.81 0. 0.
+# Default amplitude is 0.2/k
+# ibc.init_amplitude = 0.1
+# Default interface thickness is 2*h0
+# ibc.interface_thickness = 3.8E-3
+# Set the boundary conditions, 0 - extrapolated, 1 - outflow, 2 - dirichlet
+ibc.low_bc = 0
+ibc.bc_order = 1
+ibc.tag_threshold = 0.01
+ibc.tag_variable = density
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 208 32 32
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0.0 0.0 0.0
+
+# Physical domain length
+grid.domain_length = 0.39 0.06 0.06
+
+# Coordinate system (comment out to use Cartesian)
+# coordsys.type = warped
+# coordsys.scale = 0.1 0.1 0.0 
+# coordsys.relative_tolerance = 1.0e-12
+# coordsys.absolute_tolerance = 1.0e-13
+# coordsys.maximum_iterations = 100
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Reynolds number (optional: default 1.)
+fluid.Re = 200
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+fluid.mu = -1.
+
+# Density (optional: default 1.2250 (kg/m&3))
+# Density is set based on temperature and pressure for this problem
+fluid.rho = 1.165
+
+# Temperature (optional: default 288.15 (K))
+fluid.T = 298.
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+fluid.K = -1.
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 100000
+
+# Initial time step
+#sol.initial_dt = 1.E-10
+
+#sol.max_dt = 1.2E-10
+
+# Initial solution time (optional: default 0.0)
+#sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 0.0029
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-9
+
+# Limit on the time step growth (optional: default 1.1)
+sol.max_dt_growth = 1.1
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 0.
+
+# CFL number (optional: default 1.0)
+sol.cfl = 0.7
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 0.25
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+# Note: FourthOrderPPM uses 4th-order construction by default
+limit.method = FourthOrderPPM
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default set by method)
+#limit.face_order = 4
+
+# Face limiting
+limit.limit_face_values = 1
+
+# Use apply DC flattening to all deconvolutions or convolutions
+# on all cells or faces
+# Options are true, false, or 2nd (optional: default false)
+limit.total_dc_flattening = true
+
+# Tolerance for flattening directly
+# (optional: default 0.2)
+#limit.dc_flat_tol = 0.1
+
+# Apply face construction order reduction
+# Automatically applied when total dc flattening is true
+# and face value limiting is on
+#limit.use_fcor = 1
+
+# Apply extra limiting for boundary adjacent cells
+limit.extra_bound_lim = 1
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+#limit.fourth_order_artificial_viscosity_coef = 0.42
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 2
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 8 8 8
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 6
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+#amr.block_factor = 2
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 0

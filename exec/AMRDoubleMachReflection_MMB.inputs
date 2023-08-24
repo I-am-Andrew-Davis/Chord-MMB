@@ -1,0 +1,185 @@
+#====================================================================
+#
+# Double Mach reflection problem
+#
+# Two levels of refinement are required for observing close capture
+# of the shocks.  With godunov.max_level set to 2, the solution takes
+# ~3 min on 4 cores.
+#
+# If you are willing to wait, godonuv.max_level = 3 is quite
+# impressive.  (~10 min on 40 cores).
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/shockRamp.000064.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 8
+file.plot_prefix = plot/DMR_MMB.plot.
+#file.plot_JU = 1
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 32
+file.checkpoint_prefix = checkpoint/DMR_MMB.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = MachReflection
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+#grid.file = grids/rampMMB.cgns
+grid.file = grids/rampMMB96skew.cgns 
+
+# # Coarsest grid
+# grid.num_cells = 96 24 12
+
+# # Physical domain length (must be 1.0 for x and scaled by num cells
+# # in other directions)
+# grid.domain_length = 1.0 0.25 0.125
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 10000
+
+# Initial solution time (optional: default 0.0)
+sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 0.025
+
+# CFL number (optional: default 1.0)
+sol.cfl = 0.6
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default set by method)
+#limit.face_order = 4
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity_coef = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3).  Note
+# that 0.42 is 0.3*gamma
+limit.fourth_order_artificial_viscosity_coef = 0.3
+
+# Face limiting
+#limit.limit_face_values = 1
+
+# Use total DC flattening
+# This means convolution and deconvolution flattening is used on cells and faces
+# Can be overwritten by the specific selections below
+#limit.total_dc_flattening = true
+
+# Apply face construction order reduction
+# Automatically applied when total dc flattening is true
+# and face value limiting is on
+#limit.use_fcor = 1
+
+# Convolution and deconvolution flattening
+# Flattening of convolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.convolution_flattening = 2nd
+
+# Flattening of deconvolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.deconvolution_flattening = 2nd
+
+# Or these can be set individually, options are true, false, and 2nd
+limit.flatten_cell_convolution   = false
+limit.flatten_cell_deconvolution = false
+limit.flatten_face_convolution   = false
+limit.flatten_face_deconvolution = false
+
+# limit.cell_convolution_limiting   = false
+limit.cell_deconvolution_limiting = true
+# limit.face_convolution_limiting   = false
+limit.face_deconvolution_limiting = true
+
+# Provide extra limiting near boundaries
+#limit.extra_bound_lim = 1
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 4 4 4
+
+# Regridding interval for each level
+amr.regrid_interval = 4 4 4
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+# We need 6 ghosts before the shock but the gridbuffer will add 5 and the shock
+# will be more disperse on the coarser level.
+# Then we need a value equivalent to the regrid interval, assuming the time-
+# step is restricted by the speed of the feature we are tracking.
+amr.tag_buffer_size = 4
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+#--------------------------------------------------------------------
+# IBC
+#--------------------------------------------------------------------
+
+# Ramp values, must be given in input file
+# Angle given in degrees
+coordsys.ramp_angle  = 30.
+coordsys.lead_length = 0.08
+coordsys.ramp_length = 0.4
+
+# Do base refinement near wall initially
+ibc.tag_wall = true
+
+ibc.tag_threshold = 0.1
+ibc.wall_order = 4

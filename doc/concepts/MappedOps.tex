@@ -1,0 +1,363 @@
+% Allows compilation of just this section in this directory
+\ifx\havefulldoc\undefined
+  \input{../definitions}
+  \begin{document}
+  \fi
+
+\begin{center}
+  \large\bfseries Mapped operations using transformations from computational to
+  physical space
+\end{center}
+
+%% Define commands for consistent treatment throughout document
+\newcommand{\eqnref}[1]{\text{Eq.}~(\ref{eq:#1})}
+% \newcommand{\eqnsref}[1]{\text{Eqs.}~(\ref{eq:#1})}
+% \newcommand{\afigref}[1]{\text{Fig.}~\ref{fig:#1}}
+% \newcommand{\figsref}[1]{\text{Figs.}~\ref{fig#1}}
+% \newcommand{\tblref}[1]{\text{Table}~\ref{tbl:#1}}
+% \newcommand{\class}[1]{\texttt{#1}}
+% \newcommand{\package}[1]{\texttt{#1}}
+% \newcommand{\file}[1]{\textt{#1}}
+% \newcommand{\BibTex}{\textsc{Bib}\Tex}
+
+% \newcommand{\NrmT}{{\rm{N}}^{T}}
+\newcommand{\NtJ}{\frac{{\NrmT}}{J}}
+\newcommand{\NtJs}[1]{\frac{{\NrmT}_{#1}}{J}}
+\newcommand{\NJ}{\frac{{\Nrm}}{J}}
+\newcommand{\rmT}{{\rm T}}
+
+\usetikzlibrary{calc}
+\usetikzlibrary{patterns}
+
+% \maketitle
+
+% \section*{Notation}
+% \begin{multicols}{2}
+%   \begin{tabbing}
+%     XXXXX \= \kill %set tab stop
+%     $\vec{\Fbrm}$ \> flux dyad, e.g., [${\Fbrm_1,\cdots, \Fbrm_D}$] \\
+%     $\Fbrm$ \> flux vector, e.g., [$\Frm_1, \cdots, \Frm_N$] \\
+%     $\Ubrm$ \> solution vector, e.g., [$\Urm_1, \cdots, \Urm_N$] \\
+%     $\Frm_j$, ${\rm{G}}_j$ \> the $j^{th}$ component of vector ${\Fbrm}$ (or \Gbrm) \\
+%     $\NrmT$ \> metric transformation matrix \\
+%     $J$ \> grid metric Jacobian \\
+%     $\ibold$ \> grid indices, e.g., ($i, j, k$) in 3D \\
+%     $\eboldd$ \> unit vector in direction $d$ \\
+%     $\avg{\cdot}$ \> the cell-averaged or face-averaged \\
+%     $\vecx$ \> physical space, e.g., ($x, y, z)$ \\
+%     $\vecxi$ \> computational space, e.g., ($\xi, \eta, \zeta$) \\
+%     $\vecnabla_x$ \> $\vecnabla$ in physical space\\
+%     $\vecnabla_\xi$ \> $\vecnabla$ in computational space
+%   \end{tabbing}
+% \end{multicols}
+
+% \section{Mapping in the Fourth-Order Accurate Finite-Volume Scheme}
+% To provide a brief background for how mapping is used in Chord, the major steps are reviewed for a fourth-order finite-volume method with generalized curvilinear transformation. More thorough details may be found in previous papers by Guzik et al.\cite{Guzik2015, Guzik2012}, with the main points summarized here.
+
+% \subsection{The Conservation Laws}
+% The finite-volume method for Cartesian grids is formulated using the integral form of the conservation laws with control volumes $V_i$ in physical space, $\vecx$,
+% \begin{equation*}
+%   \fpartial{}{t}{1}\int_{\vecx(V_{\ibold})} \Ubrm\,\mathrm{d}\vecx + \int_{\vecx(V_{\ibold})}\vecnabla_{x}\cdot\vec{\Fbrm}\,\mathrm{d}\vecx = 0\,.
+% \end{equation*}
+% %%
+% Transforming this into computation space, $\vecxi$, is done by using grid metric terms such that
+% %%
+% \begin{align*}
+%   &\fpartial{}{t}{1}\int_{V_{\ibold}} J\Ubrm\,\mathrm{d}\vecxi + \int_{V_{\ibold}} (J \vecnabla_x \vecxi \vecnabla_{\xi})\cdot \vec{\Fbrm}\,\mathrm{d}\vecxi = 0 \\
+%   &\fpartial{}{t}{1}\int_{V_{\ibold}} J\Ubrm\,\mathrm{d}\vecxi + \int_{V_{\ibold}} \vecnabla_{\xi}\cdot(\NrmT\vec{\Fbrm})\,\mathrm{d}\vecxi = 0
+% \end{align*}
+% where the transformation matrix, $\NrmT$, describes the grid metrics, and the metric Jacobian is defined by $J \equiv \det ( \vecnabla_{\xi} \vecx)$. It is of note here that although the divergence operator is applied to $\NrmT$, it is indeed divergence free.
+% %Given that $\NrmT = J  \vecnabla_{x} \vec\xi$, with $\sum_j \frac{\partial\Nrm_{i,j}}{\partial \xi_j} = 0$.
+% After applying the divergence theorem of Gauss, the integrals can be represented as cell averaged values, and the hyperbolic fluxes yield
+% %%
+% \begin{gather}
+%   \frac{\mathrm{d}}{\mathrm{d}t}\avg{J\Ubrm}_\ibold + \frac{1}{h}\sum_{d=1}^D\left(\avg{\NrmT_d\vec{\Fbrm}}_\hhstep{+} - \avg{\NrmT_d\vec{\Fbrm}}_\hhstep{-}\right) = 0\,,\label{eq:semidiscrDiv.map}
+% \end{gather}
+% %%
+% where the subscript $d$ denotes the $d^{th}$ row of $\NrmT$. The algorithm for arriving at a freestream-preserving $\avg{\NrmT_d\vec{\Fbrm}}$ from $\NrmT_d\vec{\Fbrm}$ is a rather involved process, and so is excluded in this setting but can be found in work by Guzik et al.\cite{Guzik2015}.
+% It suffices to say that the mapping $\vecx(\vecxi)$ and its inverse are required on codimension two elements of the grid (e.g., vertices in 2-D and edges in 3-D).
+
+%   For a single solution variable, the averaged values in equation~\eqref{eq:semidiscrDiv.map} can be obtained at fourth-order accuracy from
+% %%
+% \begin{equation}
+%   \avg{\NrmT_d\vec{\mathrm{F}}}_\hhstep{\pm} = \sum_{s=1}^D\avg{\NrmT_{d,s}}_{\hhstep{\pm}}\avg{\mathrm{F}_{s}}_{\hhstep{\pm}} + \frac{h^2}{12}\sum_{s=1}^D\sum_{d'\ne d}\fpartial{\NrmT_{d,s}}{\xi_{d'}}{1}\fpartial{\mathrm{F}_{s}}{\xi_{d'}}{1} + O(h^4)\,.
+%   \label{eq:fspmappedflux}
+% \end{equation}
+
+% where
+% %%
+% \begin{equation}
+%   \avg{\NrmT_{d,s}} = \frac{1}{h^{D-1}}\sum_{\pm=[+,-]}\sum_{d'\ne d}\pm\int_{l_{d,d',\pm}}\Nc_{s,(d,d')}\,\mathrm{d}{r}_{\xi}\,,
+%   \label{eq:avgscrN}  % Completely incorrect label!
+% \end{equation}
+% %%
+% such that $l_{d,d'\ne d} = \partial A_d$ are the (hyper)edges of face $A_d$.
+% Quadratures of sufficient order can be used to replace the integrals.  Because~\eqref{eq:avgscrN} only involves terms normal to the face only the normal components of $\avg{\NrmT}$ can be determined. However, this is all that is required for hyperbolic conservation laws. If required, transverse components of $\avg{\NrmT}$ can be computed directly or averaged from the normal components of $\avg{\NrmT}$ on nearby faces in orthogonal directions.
+
+% For each edge, the same integrals of $\vec{\Nc_s}$ over the edge appear for the integral over each face adjacent to that edge but with opposite signs.  Therefore, the integration of $\avg{\NrmT}$ over the complete cell volume is zero as long as the integrals of $\vec{\Nc_s}$ are approximated with the same quadrature formulas wherever they appear.
+
+% The form of $\Nc_{s,(d,d')}$ is given explicitly by
+% %%
+% \begin{equation}
+%   \Nc_{s,(d,d')} = \frac{1}{D - 1}
+%   \det((\vecnabla_{\xi}\vecx)^T(d|\ebold^s)(d'|\vecx))\,,
+%   \label{eq:pntscrN}
+% \end{equation}
+% %%
+% where $\mathrm{A}(p|\vbrm)$ denotes a modification of matrix $\mathrm{A}$ by replacing row $p$ with vector $\vbrm$.
+
+% Note that the preceding discussion on freestream preservation concerns only the flux divergence.
+% The treatment of source terms is straightforward on the mapped grid, as long as the control volumes are stationary, since freestream preservation concerns do not arise.
+
+\section{Grid Metrics}
+For a grid transformation, a mapping such that $\vec{\xi}(\vec{x})$, along with an inverse mapping $\vec{x}(\vec{\xi})$ must exist. The grid metrics are the set of directional derivatives, which define the grid mapping and are needed for calculation. The metrics and inverse metrics are defined respectively as
+\begin{center}
+  \begin{align*}
+    \text{Inverse Grid Metrics:} \qquad&
+    \vecnabla_{\xi} \vecx \equiv \fpartial{(x_1,x_2,x_3)}{(\xi_1,\xi_2,\xi_3)}{1} =
+    \begin{bmatrix}
+      \displaystyle\fpartial{x_1}{\xi_1}{1} & \displaystyle\fpartial{x_1}{\xi_2}{1} & \displaystyle\fpartial{x_1}{\xi_3}{1}\\[2.5ex]
+      \displaystyle\fpartial{x_2}{\xi_1}{1} & \displaystyle\fpartial{x_2}{\xi_2}{1} & \displaystyle\fpartial{x_2}{\xi_3}{1}\\[2.5ex]
+      \displaystyle\fpartial{x_3}{\xi_1}{1} & \displaystyle\fpartial{x_3}{\xi_2}{1} & \displaystyle\fpartial{x_3}{\xi_3}{1}
+    \end{bmatrix}, \\
+    \text{Grid Metrics:} \qquad&
+    \vecnabla_{x} \vecxi \equiv \fpartial{(\xi_1,\xi_2,\xi_3)}{(x_1,x_2,x_3)}{1} = 
+    \begin{bmatrix}
+      \displaystyle\fpartial{\xi_1}{x_1}{1} & \displaystyle\fpartial{\xi_1}{x_2}{1} & \displaystyle\fpartial{\xi_1}{x_3}{1}\\[2.5ex]
+      \displaystyle\fpartial{\xi_2}{x_1}{1} & \displaystyle\fpartial{\xi_2}{x_2}{1}& \displaystyle\fpartial{\xi_2}{x_3}{1}\\[2.5ex]
+      \displaystyle\fpartial{\xi_3}{x_1}{1} & \displaystyle\fpartial{\xi_3}{x_2}{1}& \displaystyle\fpartial{\xi_3}{x_3}{1}
+    \end{bmatrix}\,.
+  \end{align*}
+\end{center}
+By definition it is known that
+% \begin{equation}
+%   \vecnabla_{\xi} \vecx  \vecnabla_{x} \vecxi  = \Ibrm,
+% \end{equation}
+% and thus the relation
+\begin{equation*}
+  \vecnabla_{x} \vecxi = {(\vecnabla_{\xi} \vecx)}^{-1}\,,
+\end{equation*}
+the grid metric Jacobian is defined as 
+\begin{equation*}
+  J \equiv \det ( \vecnabla_{\xi} \vecx )\,,
+\end{equation*}
+and
+\begin{equation*}
+  \NrmT = J \vecnabla_{x} \vecxi\,.
+\end{equation*}
+% \begin{eqnarray}
+%   J & \equiv & \det ( \vecnabla_{\xi} \vecx )\\
+%   & = & \  \fpartial{x_1}{\xi_1}{1} \ \fpartial{x_2}{\xi_2}{1} \  \displaystyle\fpartial{x_3}{\xi_3}{1} \ - \  \fpartial{x_1}{\xi_1}{1} \ \fpartial{x_2}{\xi_3}{1} \  \displaystyle\fpartial{x_3}{\xi_2}{1} \ - \  \fpartial{x_1}{\xi_2}{1} \ \fpartial{x_2}{\xi_1}{1} \ \  \displaystyle\fpartial{x_3}{\xi_3}{1} \nonumber\\
+%   &\  & \ + \ \fpartial{x_1}{\xi_2}{1} \ \fpartial{x_2}{\xi_3}{1} \  \displaystyle\fpartial{x_3}{\xi_1}{1} \ + \   \fpartial{x_1}{\xi_3}{1} \ \fpartial{x_2}{\xi_1}{1} \  \displaystyle\fpartial{x_3}{\xi_2}{1} \ -\  \fpartial{x_1}{\xi_3}{1} \ \fpartial{x_2}{\xi_2}{1} \  \displaystyle\fpartial{x_3}{\xi_1}{1} \nonumber \,.
+% \end{eqnarray}
+% For a smooth 2-D mapping, the metric Jacobian reduces to 
+% \begin{equation}
+%   J =  \fpartial{x_1}{\xi_1}{1} \ \fpartial{x_2}{\xi_2}{1} -
+%   \fpartial{x_1}{\xi_2}{1} \ \fpartial{x_2}{\xi_1}{1} \,.\nonumber
+% \end{equation}
+% As seen by Guzik et al.\cite{Guzik2015} a matrix metric transformation term, $\NrmT$, can be derived. Assuming the coordinates are time invariant, this is defined as
+% \begin{equation}
+%   \NrmT = J \vecnabla_{x} \vecxi
+% \end{equation}
+% % or in a more accessible form
+% % \begin{equation}
+% %   \NrmT = J {(\vecnabla_{\xi} \vecx)}^{-1}
+% % \end{equation}
+
+While these quantities are known at any point, the average $\avg{\NrmT_d}$ on a face, as used in \eqnref{semidiscrDiv.map}, is determined using a more elaborate process to ensure freestream preservation~\cite{Guzik2015}.
+Ultimately, $\avg{\NrmT_d}$ is computed on a face normal to direction $d$ from a line integral of $\Nc_{s,(d,d')}, d' \ne d$ around the edges of the face.
+%%
+$\Nc_{s,(d,d')}$ is defined as
+\begin{equation}
+  \Nc_{s,(d,d')} = \frac{1}{D - 1}
+  \det((\vecnabla_{\xi}\vecx)^T(d|\ebold^s)(d'|\vecx))\,,
+  \label{eq:pntscrN}
+\end{equation}
+%%
+where $\mathrm{A}(p|\vbold)$ denotes a modification of matrix $\mathrm{A}$ by replacing row $p$ with vector $\vbold$.
+At interfaces of mesh resolution, $\Nc_s$ is not continuous across the face and a one-order loss of accuracy can be observed.
+% For this reason, it is desired to have the metrics computed to $O(\Delta x^{p+1})$ accuracy in order for $\avg{\NrmT_d}$ to be accurate to $O(\Delta x^p)$ everywhere.
+
+\section{Useful Transformations}
+
+%% add some matrix expansions that show up a couple times
+\newcommand{\gradMat}[6]{\begin{bmatrix} %{u}{v}{w}{x}{y}{z}
+    \fpartial{#1}{#4}{1} & \fpartial{#1}{#5}{1} & \fpartial{#1}{#6}{1} \\[1.5ex]
+    \fpartial{#2}{#4}{1} & \fpartial{#2}{#5}{1} & \fpartial{#2}{#6}{1} \\[1.5ex]
+    \fpartial{#3}{#4}{1} & \fpartial{#3}{#5}{1} & \fpartial{#3}{#6}{1} \\[1.5ex]
+  \end{bmatrix}}
+
+\newcommand{\gradMatT}[6]{\begin{bmatrix} %{u}{v}{w}{x}{y}{z}
+    \fpartial{#1}{#4}{1} & \fpartial{#2}{#4}{1} & \fpartial{#3}{#4}{1} \\[1.5ex]
+    \fpartial{#1}{#5}{1} & \fpartial{#2}{#5}{1} & \fpartial{#3}{#5}{1} \\[1.5ex]
+    \fpartial{#1}{#6}{1} & \fpartial{#2}{#6}{1} & \fpartial{#3}{#6}{1} \\[1.5ex]
+  \end{bmatrix}}
+
+\newcommand{\gradXiMat}[3]{\gradMat{#1}{#2}{#3}{\xi}{\eta}{\zeta}}
+
+\newcommand{\gradVec}[4]{\begin{bmatrix} %{\phi}{x}{y}{z}
+    \fpartial{#1}{#2}{1} \\[1.5ex]
+    \fpartial{#1}{#3}{1} \\[1.5ex]
+    \fpartial{#1}{#4}{1} \\[1.5ex]
+  \end{bmatrix}}
+
+\newcommand{\nablaXi}{\begin{bmatrix}
+                      \fpartial{}{\xi}{1} \\[1.5ex]
+                      \fpartial{}{\eta}{1} \\[1.5ex]
+                      \fpartial{}{\zeta}{1}
+                    \end{bmatrix}}
+
+\newcommand{\metric}{\gradMat{\xi}{\eta}{\zeta}{x}{y}{z}}
+
+\newcommand{\metricT}{\gradMatT{\xi}{\eta}{\zeta}{x}{y}{z}}
+
+\newcommand{\invmetric}{\gradMat{x}{y}{z}{\xi}{\eta}{\zeta}}
+
+\newcommand{\nablaXmapped}{ \begin{bmatrix}
+    \fpartial{\xi}{x}{1}\fpartial{}{\xi}{1} + \fpartial{\eta}{x}{1}\fpartial{}{\eta}{1} + \fpartial{\zeta}{x}{1}\fpartial{}{\zeta}{1} \\[1.5ex]
+    \fpartial{\xi}{y}{1}\fpartial{}{\xi}{1} + \fpartial{\eta}{y}{1}\fpartial{}{\eta}{1} + \fpartial{\zeta}{y}{1}\fpartial{}{\zeta}{1} \\[1.5ex]
+    \fpartial{\xi}{z}{1}\fpartial{}{\xi}{1} + \fpartial{\eta}{z}{1}\fpartial{}{\eta}{1} + \fpartial{\zeta}{z}{1}\fpartial{}{\zeta}{1} \\[1.5ex]
+  \end{bmatrix}}
+
+\newcommand{\Uvec}{\begin{bmatrix}
+                   u \\[1.5ex] v \\[1.5ex] w
+                 \end{bmatrix}}
+
+For mapped solutions, as is seen in the conservative form, problems are solved in terms of conservative variables $JU$ in computational coordinates $\vec{\xi}$. This transformation however in no way changes the primitive variables $U$, which are still in terms of physical (likely Cartesian) space $\vec{x}$. The main difference encountered in mapping is that all derivative related operators undergo a change of variables. Expressing these in terms of the nabla operators, the chain rule yields $\vecnabla_x = (\vecnabla_x \xi) \vecnabla_{\xi} = \NJ \vecnabla_{\xi}$ which will be used frequently. Keep in mind this is still an operator, and for the sake of completeness this expanded as
+\begin{align*}
+  \vecnabla_x &= \NJ \vecnabla_{\xi} \\
+  \begin{bmatrix}
+    \fpartial{}{x}{1} \\[1.5ex]
+    \fpartial{}{y}{1} \\[1.5ex]
+    \fpartial{}{z}{1}
+  \end{bmatrix}
+           & =  \metricT \nablaXi  = \nablaXmapped
+\end{align*}
+which is seen to simply be the chain rule expansion of each term. The transposed of the mapped nabla operator is equally valid where $\NJ \vecnabla_{\xi} = \vecnabla^{\rmT}_{\xi} \NtJ$, however the transpose I find slightly more awkward to use. Additionally it is easily interpreted wrong as a gradient of $\NrmT$ which leads to confusion. To avoid that problem it is noteworthy that any mixed derivative $\fpartial{}{\xi_i}{1} \big(\fpartial{\xi_j}{x_k}{1} \big)$ must be equal to zero, and thus $\vecnabla_{\xi} \cdot \NtJ = \vec{0}$
+
+\subsubsection{Tensor Notation}
+  Some tensor notation review
+
+  The dot product (or inner product) operates on two vectors and results in a scalar $a \cdot b = \sum_i a_i b_i$
+  
+  The double dot product is an inner prodoct that operates on two matrices and returns a scalar. It is denoted by $:$ and is defined as $A:B = \sum_i \sum_j A_{i,j} B_{i,j}$
+
+
+\subsection{Divergence}
+In physical space the divergence of a vector $u$ is expressed as
+\begin{align*}
+  \vecnabla_x \cdot \vec{u} 
+  &= \fpartial{u_i}{x_i}{1} \\
+  &= \fpartial{\xi_j}{x_i}{1} \fpartial{u_i}{\xi_j}{1} \\
+  &= \bigg(\NJ \vecnabla_{\xi} \bigg) \cdot \vec{u} \\
+  &= \NJ : \vecnabla_{\xi} \vec{u}
+\end{align*}
+Expanding this yields
+\begin{align*}
+  \vecnabla_x \cdot \vec{u}
+  &= \fpartial{u}{x}{1} + \fpartial{v}{y}{1} + \fpartial{w}{z}{1} \\
+  &= \bigg(\NJ \vecnabla_{\xi} \bigg) \cdot \vec{u}
+    = \nablaXmapped \cdot \Uvec \\
+  &= \NJ : \vecnabla_{\xi} \vec{u}
+    = \metricT :  \gradXiMat{u}{v}{w}\\
+  &= \bigg( \fpartial{\xi}{x}{1} \fpartial{u}{\xi}{1} + \fpartial{\eta}{x}{1} \fpartial{u}{\eta}{1} + \fpartial{\zeta}{x}{1} \fpartial{u}{\zeta}{1} \bigg) +
+    \bigg( \fpartial{\xi}{y}{1} \fpartial{v}{\xi}{1} + \fpartial{\eta}{y}{1} \fpartial{v}{\eta}{1} + \fpartial{\zeta}{y}{1} \fpartial{v}{\zeta}{1} \bigg) +
+    \bigg( \fpartial{\xi}{z}{1} \fpartial{w}{\xi}{1} + \fpartial{\eta}{z}{1} \fpartial{w}{\eta}{1} + \fpartial{\zeta}{z}{1} \fpartial{w}{\zeta}{1} \bigg)
+\end{align*}
+
+An additional form that is rather useful for flux calculation is
+\begin{align*}
+  \vecnabla_x \cdot \vec{u} 
+  &= \vecnabla_{\xi} \cdot \bigg(\NtJ \vec{u} \bigg) \\
+  &= \bigg( \cancelto{0}{ \vecnabla_{\xi} \cdot \NJ } \bigg) \cdot \vec{u} + \NJ : \bigg( \vecnabla_{\xi} \vec{u} \bigg) \\
+  &= \NJ : \vecnabla_{\xi} \vec{u}
+\end{align*}
+
+\subsection{Gradient}
+In physical space the gradient of a vector $u$ is expressed as
+\begin{align*}
+  \vecnabla_x \vec{u}
+  &= \fpartial{u_i}{x_j}{1} \\
+  &= \fpartial{\xi_k}{x_j}{1} \fpartial{u_i}{\xi_k}{1} \\
+  &= \bigg( \Big(\NJ \vecnabla_{\xi} \Big) \otimes \vec{u}\bigg)^{\rmT} \\
+  &= \big(\vecnabla_{\xi} \vec{u} \big) \Big( \NtJ \Big)
+\end{align*}
+which is expanded as
+\begin{align*}
+  \vecnabla_x \vec{u}
+  &= \gradMat{u}{v}{w}{x}{y}{z} \\
+  %&= \metric \nablaXi \Uvec \\
+  %&= \bigg( \Big(\NJ \vecnabla_{\xi} \Big) \otimes \vec{u}\bigg)^{\rmT} = \nablaXmapped \otimes \Uvec ^{\rmT} \\
+  &= \big(\vecnabla_{\xi} \vec{u} \big) \Big( \NtJ \Big) = \gradXiMat{u}{v}{w}  \metric \\
+  &= 
+    \begin{bmatrix}
+      \fpartial{\xi}{x}{1}\fpartial{u}{\xi}{1} + \fpartial{\eta}{x}{1}\fpartial{u}{\eta}{1} + \fpartial{\zeta}{x}{1}\fpartial{u}{\zeta}{1} &
+      \fpartial{\xi}{y}{1}\fpartial{u}{\xi}{1} + \fpartial{\eta}{y}{1}\fpartial{u}{\eta}{1} + \fpartial{\zeta}{y}{1}\fpartial{u}{\zeta}{1} &
+      \fpartial{\xi}{z}{1}\fpartial{u}{\xi}{1} + \fpartial{\eta}{z}{1}\fpartial{u}{\eta}{1} + \fpartial{\zeta}{z}{1}\fpartial{u}{\zeta}{1} \\[1.5ex]
+      \fpartial{\xi}{x}{1}\fpartial{v}{\xi}{1} + \fpartial{\eta}{x}{1}\fpartial{v}{\eta}{1} + \fpartial{\zeta}{x}{1}\fpartial{v}{\zeta}{1} &
+      \fpartial{\xi}{y}{1}\fpartial{v}{\xi}{1} + \fpartial{\eta}{y}{1}\fpartial{v}{\eta}{1} + \fpartial{\zeta}{y}{1}\fpartial{v}{\zeta}{1} &
+      \fpartial{\xi}{z}{1}\fpartial{v}{\xi}{1} + \fpartial{\eta}{z}{1}\fpartial{v}{\eta}{1} + \fpartial{\zeta}{z}{1}\fpartial{v}{\zeta}{1} \\[1.5ex]
+      \fpartial{\xi}{x}{1}\fpartial{w}{\xi}{1} + \fpartial{\eta}{x}{1}\fpartial{w}{\eta}{1} + \fpartial{\zeta}{x}{1}\fpartial{w}{\zeta}{1} &
+      \fpartial{\xi}{y}{1}\fpartial{w}{\xi}{1} + \fpartial{\eta}{y}{1}\fpartial{w}{\eta}{1} + \fpartial{\zeta}{y}{1}\fpartial{w}{\zeta}{1} &
+      \fpartial{\xi}{z}{1}\fpartial{w}{\xi}{1} + \fpartial{\eta}{z}{1}\fpartial{w}{\eta}{1} + \fpartial{\zeta}{z}{1}\fpartial{w}{\zeta}{1} \\[1.5ex]
+    \end{bmatrix}
+\end{align*}
+which is again a simple, although tedious, application of the chain rule
+
+A note on Chombo storage. It commonly make more sense to store $(\vecnabla_{\xi} \vec{u})^T$, and $(\vecnabla_{x} \vec{u})^T$ because each component of $u$ can be stored contiguously which is far more natural as it works for any number of components. Thus the above transformation is more likely used as $(\vecnabla_x \vec{u})^T = \NJ \big(\vecnabla_{\xi} \vec{u} \big)^T$
+
+
+\subsection{Gradient of a Scalar}
+In physical space the gradient of a scalar $\phi$ is expressed as
+\begin{align*}
+  \vecnabla_x \phi
+  &= \fpartial{\phi}{x_j}{1} \\
+  &= \fpartial{\xi}{x_j}{1} \fpartial{\phi}{\xi_k}{1} \\
+  &= \big(\vecnabla_{\xi} \phi \big)^{\rm{T}} \Big( \NtJ \Big) = \NJ \big(\vecnabla_{\xi} \phi \big) \\
+\end{align*}
+which is expanded as
+\begin{align*}
+  \vecnabla_x \phi
+  &= \gradVec{\phi}{x}{y}{z} \\
+  &= \NJ \big(\vecnabla_{\xi} \phi \big) = \metricT \gradVec{\phi}{\xi}{\eta}{\zeta} \\
+  &= 
+    \begin{bmatrix}
+      \fpartial{\xi}{x}{1}\fpartial{\phi}{\xi}{1} + \fpartial{\eta}{x}{1}\fpartial{\phi}{\eta}{1} + \fpartial{\zeta}{x}{1}\fpartial{\phi}{\zeta}{1} \\[1.5ex]
+      \fpartial{\xi}{y}{1}\fpartial{\phi}{\xi}{1} + \fpartial{\eta}{y}{1}\fpartial{\phi}{\eta}{1} + \fpartial{\zeta}{y}{1}\fpartial{\phi}{\zeta}{1} \\[1.5ex]
+      \fpartial{\xi}{z}{1}\fpartial{\phi}{\xi}{1} + \fpartial{\eta}{z}{1}\fpartial{\phi}{\eta}{1} + \fpartial{\zeta}{z}{1}\fpartial{\phi}{\zeta}{1} \\[1.5ex]
+    \end{bmatrix}
+\end{align*}
+which is again an application of the chain rule
+
+\subsection{Curl}
+In physical space the curl of a vector $u$ is expressed as
+\begin{align*}
+  \vecnabla_x \times \vec{u}
+  &= \epsilon_{ijk}\fpartial{u_k}{x_j}{1} \\
+  &= \epsilon_{ijk} \fpartial{\xi_l}{x_j}{1} \fpartial{u_k}{\xi_l}{1} \\
+  &= \Big(\NJ \vecnabla_{\xi} \Big) \times \vec{u}
+\end{align*}
+This unfortunately does not appear to be easily decomposed. In expanded form this becomes
+\begin{align*}
+  \vecnabla_x \times \vec{u}
+  &=
+    \begin{bmatrix}
+      \fpartial{w}{y}{1} - \fpartial{v}{z}{1} \\[1.5ex]
+      \fpartial{u}{z}{1} - \fpartial{w}{x}{1} \\[1.5ex]
+      \fpartial{v}{x}{1} - \fpartial{u}{y}{1} 
+    \end{bmatrix} \\
+  &=
+    \begin{bmatrix}
+      \big( \fpartial{\xi}{y}{1} \fpartial{w}{\xi}{1} + \fpartial{\eta}{y}{1} \fpartial{w}{\eta}{1} + \fpartial{\zeta}{y}{1} \fpartial{w}{\zeta}{1} \big) -
+      \big( \fpartial{\xi}{z}{1} \fpartial{v}{\xi}{1} + \fpartial{\eta}{z}{1} \fpartial{v}{\eta}{1} + \fpartial{\zeta}{z}{1} \fpartial{v}{\zeta}{1} \big) \\[1.5ex]
+      \big( \fpartial{\xi}{z}{1} \fpartial{u}{\xi}{1} + \fpartial{\eta}{z}{1} \fpartial{u}{\eta}{1} + \fpartial{\zeta}{z}{1} \fpartial{u}{\zeta}{1} \big) -
+      \big( \fpartial{\xi}{x}{1} \fpartial{w}{\xi}{1} + \fpartial{\eta}{x}{1} \fpartial{w}{\eta}{1} + \fpartial{\zeta}{x}{1} \fpartial{w}{\zeta}{1} \big) \\[1.5ex]
+      \big( \fpartial{\xi}{x}{1} \fpartial{v}{\xi}{1} + \fpartial{\eta}{x}{1} \fpartial{v}{\eta}{1} + \fpartial{\zeta}{x}{1} \fpartial{v}{\zeta}{1} \big) -
+      \big( \fpartial{\xi}{y}{1} \fpartial{u}{\xi}{1} + \fpartial{\eta}{y}{1} \fpartial{u}{\eta}{1} + \fpartial{\zeta}{y}{1} \fpartial{u}{\zeta}{1} \big)
+    \end{bmatrix}
+\end{align*}
+
+
+\ifx\havefulldoc\undefined
+\end{document}
+\fi

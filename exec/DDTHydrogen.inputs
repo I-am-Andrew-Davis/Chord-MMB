@@ -1,0 +1,215 @@
+#====================================================================
+#
+# Basic Testing
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/detonation.185000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_period = 1.0E-6
+file.plot_prefix = plot/detonation.plot.
+#file.plot_extra_vars = 1
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 2500
+file.checkpoint_prefix = checkpoint/detonation.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemDetonation
+
+#--------------------------------------------------------------------
+# Thermally Perfect Multispecies
+#--------------------------------------------------------------------
+
+# If schmidt_number > 0., then schmidt number is used
+#therm.schmidt_num = 1.
+# Set if some species specific Lewis numbers are used (optional: default true)
+therm.multiple_lewis_numbers = false
+# Set the file to use for species specific Lewis numbers
+# (optional: default Mechanism_files/speciesLewisNumbers.inp)
+therm.lewis_number_file = Mechanism_files/speciesLewisNumbers.inp
+# Define default Lewis number or only Lewis number
+# if multiple_lewis_number = false
+therm.lewis_num = 1.
+
+therm.species = H2 O2 H2O OH O H HO2 H2O2
+
+therm.num_of_reactions = 9
+
+therm.reaction_file = Mechanism_files/libermanh2o2.inp
+
+# Correct species to ensure realizability (sum rho_i = rho & rho_i > 0)
+therm.use_species_correction = true
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+ibc.init_specs = H2 O2
+ibc.init_mfs = 0.1119 0.8881
+ibc.init_pressure = 101325.
+ibc.high_temperature = 1500.
+ibc.low_temperature = 300.
+ibc.init_temperature = 300.
+ibc.gradient_length = 0.08
+ibc.tag_variable = density temperature
+ibc.tag_threshold = 0.019 0.03
+
+ibc.periodicity = 0 1 0
+
+ibc.lo_bc_x = SlipWall
+ibc.hi_bc_x = Extrapolated
+ibc.lo_bc_y = SlipWall
+ibc.hi_bc_y = SlipWall
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 1024 8 8
+grid.domain_length = 1.25E-1 9.765625E-4 9.765625E-4
+
+# Coordinate system (comment out to use Cartesian)
+# coordsys.type = warped
+# coordsys.scale = 0.1 0.1 0.0 
+# coordsys.relative_tolerance = 1.0e-12
+# coordsys.absolute_tolerance = 1.0e-13
+# coordsys.maximum_iterations = 100
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Reynolds number (optional: default 1.)
+fluid.Re = 200
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = -1.
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = -1.
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 100000
+
+# Initial time step to use
+#sol.initial_dt = 1.0E-9
+
+# Initial solution time (optional: default 0.0)
+#sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 4.5E-5
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-9
+
+# Limit on the time step growth (optional: default 1.1)
+sol.max_dt_growth = 1.1
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 0.8
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 0.5
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening)
+# Options are FourthOrderPPM, FourthOrderCentral, FirstOrderGodunov
+# (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Face limiting
+limit.limit_face_values = 1
+
+# Use apply DC flattening to all deconvolutions or convolutions
+# on all cells or faces
+# Options are true, false, or 2nd (optional: default false)
+limit.total_dc_flattening = true
+
+# Tolerance for flattening directly
+limit.dc_flat_tol = 0.2
+
+# Apply face construction order reduction
+# Automatically applied when total dc flattening is true
+#limit.use_fcor = 1
+
+# Apply extra limiting for boundary adjacent cells
+limit.extra_bound_lim = 1
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3).  Note
+# that 0.42 is 0.3*gamma
+#limit.fourth_order_artificial_viscosity_coef = 0.3
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 3
+
+# Refinement ratio between levels
+amr.ref_ratio = 4 4 4
+
+# Regridding interval for each level
+amr.regrid_interval = 8 8 8
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 6
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 0

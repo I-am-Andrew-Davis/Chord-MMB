@@ -1,0 +1,88 @@
+!****************************************************************************
+!
+! A skeletal model for methane oxygen combustion in rocket engine.
+!
+! Rui Xu, Hai Wang
+! Stanford University
+!
+! October 31, 2018
+!
+! Please contact Hai Wang at haiwang@stanford.edu for questions and comments.
+!
+!****************************************************************************
+ELEMENTS
+C H O
+END
+SPECIES
+H2  H  O2  O  OH  HO2  H2O  CH3  CH4  CO  CO2  CH2O  N2    
+END
+REACTIONS 
+ H+O2=O+OH               1.09E+14   0.      15310.              
+ O+H2=H+OH               3.82E+12   0.       7950.                 
+   DUPLICATE     
+ O+H2=H+OH               8.79E+14   0.      19180.                   
+   DUPLICATE     
+ OH+H2=H+H2O             2.16E+08   1.51     3437.                  
+ 2OH=O+H2O               3.35E+04   2.42    -1928.                  
+ H2+M=2H+M               4.58E+19  -1.4    104390.                   
+   H2/2.5/ CO/1.9/ CO2/3.8/ H2O/12./ CH4/2./ CH2O/2.5/
+! 2O+M=O2+M               6.16E+15  -0.5         0.                 
+!   H2/2.5/ CO/1.9/ CO2/3.8/ H2O/12./ CH4/2./ CH2O/2.5/
+ O+H+M=OH+M              4.71E+18  -1.0         0.            
+   H2/2.5/ CO/1.9/ CO2/3.8/ H2O/12./ CH4/2./ CH2O/2.5/ 
+ H2O+M=H+OH+M            6.06E+27  -3.322  120800.                     
+   O2/1.5/ H2/3./ CO/1.9/ CO2/3.8/ H2O/0./ CH4/7./ CH2O/2.5/ 
+ H2O+H2O=H+OH+H2O        1.01E+26  -2.44   120200.                    
+!
+ H+O2(+M)=HO2(+M)        4.65E+12   0.44        0.   
+   LOW                  /1.91E+21  -1.72      525./         
+   TROE/ 0.5   30.   90000.   90000./                
+   O2/.78/ H2/2./ CO/1.9/ CO2/3.8/ H2O/14./ CH4/2./ CH2O/2.5/ 
+ HO2+H=H2+O2             3.68E+06   2.087   -1455.   
+ HO2+H=2OH               7.08E+13   0.        300.   
+ HO2+H=O+H2O             1.45E+12   0.          0.   
+ HO2+O=OH+O2             1.63E+13   0.       -445.   
+ HO2+OH=H2O+O2           7.00E+12   0.      -1093.   
+   DUPLICATE
+ HO2+OH=H2O+O2           4.50E+14   0.      10930.   
+   DUPLICATE
+!
+ CO+O(+M)=CO2(+M)        1.06E+13  -0.308    6943.                    
+   LOW                  /1.40E+21  -2.1      5500./                    
+   H2/2.5/ CO/1.9/ CO2/3.8/ H2O/12./ CH4/2./ CH2O/2.5/ 
+ CO+O2=O+CO2             2.53E+12   0.      47700.                     
+ CO+OH=H+CO2             8.46E+04   2.053    -356.                
+   DUPLICATE     
+ CO+OH=H+CO2             8.64E+12  -0.664     332.                  
+   DUPLICATE
+ CO+HO2=OH+CO2           1.57E+05   2.18    17944.                      
+!
+ CH4+H=CH3+H2            3.07E+06   2.5      7588.                
+ CH4+O=OH+CH3            2.31E+08   1.56     8485.               
+ CH4+OH=CH3+H2O          1.00E+06   2.182    2446.                 
+!
+ CH3+H(+M)=CH4(+M)       1.41E+14   0.          0.                      
+   LOW                  /6.35E+35  -5.57     3818./            
+   TROE/.37  3315.  61.  90000./                       
+   H2/2./ CO/1.5/ CO2/2./ H2O/6./ CH4/2./ CH2O/2.5/ 
+ CH3+O=H+CH2O            1.08E+14   0.          0.   
+ CH3+O=>H+H2+CO          2.31E+13   0.          0.              
+ CH3+HO2=O2+CH4          1.16E+05   2.350   -1522.                 
+ CH3+HO2=>OH+CH2O+H      2.08E+13   0.       -590.               
+ CH3+O2=>O+CH2O+H        2.51E+12   0.      28297.                  
+ CH3+O2=OH+CH2O          2.28E+01   2.53     9768.               
+ CH3+CH2O=>H+CO+CH4      1.06E+01   3.36     4310.                  
+!
+ CH2O(+M)=H2+CO(+M)      3.70E+13   0.      71976.               
+   LOW                  /4.40E+38  -6.1     94000./     
+   TROE/.932  197.  1540.  10300./         
+   H2/2./ CO/1.5/ CO2/2./ H2O/6./ CH4/2./ CH2O/2.5/ 
+ CH2O+H=>H2+CO+H         5.67E+12   0.361    4609.             
+   DUPLICATE
+ CH2O+H=>H2+CO+H         1.14E+13   0.582   14395.               
+   DUPLICATE
+ CH2O+O=>OH+H+CO         4.16E+11   0.57     2762.                     
+ CH2O+OH=>H+CO+H2O       7.82E+07   1.63    -1055.                
+ CH2O+O2=>HO2+H+CO       2.44E+05   2.5     36460.               
+!
+END

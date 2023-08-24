@@ -1,0 +1,228 @@
+#====================================================================
+#
+# Basic Testing of a Shock Box problem
+#
+# For a classical calorically perfect problem set:
+#   physics.fluid_models = inertial
+#   state.inner_density = 1.225
+#   state.outer_density = 4.9
+#   limit.limit_face_values = 0
+#   Comment out:
+#     fluid.mu = -1.
+#     fluid.K = -1.
+#     limit.flatten_cell_convolution = 2nd
+#     limit.flatten_cell_deconvolution = 2nd
+#     limit.flatten_face_convolution = 2nd
+#     limit.flatten_face_deconvolution = 2nd
+#     limit.cell_deconvolution_limiting = true
+#     limit.face_deconvolution_limiting = true
+#
+# FIXME: May want to also tag the species interface
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/shockTube.002048.3d.hdf5
+
+# Plot file information (optional: default no plots)
+#file.plot_interval = 40
+file.plot_period = 0.0001
+file.plot_prefix = plot/shockBox.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = -1
+file.checkpoint_prefix = checkpoint/shockBox.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = EulerShockBox
+
+physics.fluid_models = inertial viscous multispecies
+
+#--------------------------------------------------------------------
+# Thermally Perfect Multispecies
+#--------------------------------------------------------------------
+
+# If schmidt_number > 0., then schmidt number is used
+#therm.schmidt_num = 1.
+# Default uses the Lewis numbers for each species defined in
+# Mechanism_files/speciesLewisNumbers.inp
+therm.lewis_num = 1.
+# Set if some species specific Lewis numbers are used (optional: default true)
+#therm.multiple_lewis_numbers = false
+
+# List of species for problem
+therm.species = O2 N2 He
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = -1.
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = -1.
+
+#--------------------------------------------------------------------
+# Solution states
+#--------------------------------------------------------------------
+
+state.names = "inner" "outer" "wall"
+#state.inner_density = 1.225
+state.inner_density = 0.55
+state.inner_velocity = 0.0 0.0 0.0
+state.inner_pressure = 101325
+state.inner_N2 = 0.75
+state.inner_O2 = 0.25
+state.inner_He = 0.0
+#state.outer_density = 4.9
+state.outer_density = 0.2
+state.outer_velocity = 0.0 0.0 0.0
+state.outer_pressure = 405300
+state.outer_N2 = 0.0
+state.outer_O2 = 0.0
+state.outer_He = 1.0
+state.wall_velocity = 0.0 0.0 0.0
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 64 64 64
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0.0 0.0 0.0
+
+# Physical domain length
+grid.domain_length = 1.0 1.0 1.0
+
+# Coordinate system (comment out to use Cartesian)
+coordsys.type = warped
+coordsys.scale = 0.1 0.1 0.1
+coordsys.relative_tolerance = 1.0e-12
+coordsys.absolute_tolerance = 1.0e-13
+coordsys.maximum_iterations = 100
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 10000
+
+# Initial solution time (optional: default 0.0)
+sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 0.005
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 0.00000625
+
+# Limit on the time step growth (optional: default 1.1)
+#sol.max_dt_growth = 1.1
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 1.0
+
+# Initial CFD for ramping
+#sol.initial_cfl = 1.0 (optional: default cfl)
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening)
+# Options are FourthOrderPPM, FourthOrderCentral, FirstOrderGodunov
+# (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Face limiting
+limit.limit_face_values = 1
+
+# Or these can be set individually, options are true, false, and 2nd
+limit.flatten_cell_convolution = 2nd
+limit.flatten_cell_deconvolution = 2nd
+limit.flatten_face_convolution = 2nd
+limit.flatten_face_deconvolution = 2nd
+
+# Limiting of deconvolutions
+# limit.deconvolution_limiting    = true
+limit.cell_deconvolution_limiting = true
+limit.face_deconvolution_limiting = true
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+limit.artificial_viscosity = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+limit.fourth_order_artificial_viscosity_coef = 0.3
+
+# Other limiting options set by limit.method
+limit.extra_boundary_limiting = 1
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 2
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 2 2 2
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 2
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 8
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+#--------------------------------------------------------------------
+# Tagging
+#--------------------------------------------------------------------
+
+tag.all_prepend = gradient density 0.05

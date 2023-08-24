@@ -1,0 +1,226 @@
+#====================================================================
+#
+# Mixing layer problem 
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/MixingLayer.001000.3d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 10
+file.plot_prefix = plot/MixingLayer.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 1000
+file.checkpoint_prefix = checkpoint/MixingLayer.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemMixingLayer
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+# Plain mixing layer problem
+physics.fluid_models = inertial viscous
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Initial density -- top layer
+ibc.init_density = 1.225
+# Initial density -- lower layer
+ibc.lowerLayer_rho = 1.225
+
+# Initial velocity -- top layer
+ibc.init_velocity = 102.0882 0. 0.
+# Initial velocity -- lower layer
+ibc.lowerLayer_velocity = -102.0882 0. 0.
+
+# Temperature -- top layer
+#ibc.init_temperature = 300.
+# Temperature -- lower layer
+#ibc.lowerLayer_temperature = 300.
+
+# Pressure -- assumed uniform
+ibc.init_pressure =  101325.
+
+# Momentum thickness -- physical length
+ibc.momentum_thickness = 0.00006
+
+# Shear layer position -- percent of single-layer height
+# 0.5 pushes the layer all the way to the edge of the domain
+ibc.shearLayer_position = 0.
+
+# Transition between densities in different streams
+ibc.density_transition_thickness = 0.
+
+# Transition between species in different streams
+ibc.species_transition_thickness = 0.
+
+# Single shear layer case?
+ibc.single_shear_layer = 0
+
+# Perturbation modes to start turbulence -- wavenumbers
+ibc.modes_x = 4 2 1
+ibc.modes_z = 2 1 0
+
+# Mode amplitudes -- fraction of single shear layer thickness
+# be careful -- these add together
+ibc.mode_amplitude_x = 0.03 0.03 0.01
+ibc.mode_amplitude_z = 0.05 0.05 0.
+
+# Mode phase shifts
+ibc.mode_phaseShift_x = 0.1 0.35 0.6
+ibc.mode_phaseShift_z = 0. 0.2 0.
+
+# Tag method -- options: gradient, value, vorticity
+#                        vms, vms_vorticity
+ibc.tag_type = vms_vorticity
+# Tag variable
+# ibc.tag_variable = density
+# Tag threshold
+ibc.tag_threshold = 0.2
+
+# Define which directions are periodic
+ibc.periodicity = 1 1 1
+
+# Define boundary conditions for non-periodic directions, lo and hi
+# ibc.lo_bc_y = SlipWall
+# ibc.hi_bc_y = SlipWall
+
+# Define order of BC (default: 4)
+# ibc.lo_bc_y_order = 4
+# ibc.hi_bc_y_order = 4
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 256 256 128
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0. 0. 0.
+
+# Physical domain length
+grid.domain_length = 0.007876 0.007876 0.003938
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = 1.7894E-5
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = 2.5326E-2
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 1000
+
+# Initial solution time (optional: default 0.0)
+sol.initial_time = 0.
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time, 3.1831 = 20 characteristic times)
+sol.max_time = 1000
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-3
+
+# Limit on the time step growth (optional: default 1.1)
+#sol.max_dt_growth = 1.
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 1.0
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 0.8
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default set by limit.method)
+#limit.face_order = 4
+
+# Other limiting options set by limit.method
+#limit.PPM_limiter = 0
+#limit.limit_face_values = 0
+#limit.use_flattening = 0
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 0
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity_coef = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+limit.fourth_order_artificial_viscosity_coef = 0.0
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 2 2 2 2
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 2
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1

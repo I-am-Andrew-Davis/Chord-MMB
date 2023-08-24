@@ -1,0 +1,22 @@
+! From "Deflagration-to-detonation transition in highly reactive combustion
+! mixtures" by Liberman et. al. 2010
+REACTIONS
+H2+O2=OH+OH                               2.52E12   0.     39000.
+  REV / 1.16E13 0. 21000. /
+OH+H2=H2O+H                               2.25E13   0.      5240.
+  REV / 9.9E13 0. 20300. /
+H+O2=OH+O                                 1.55E14   0.     16700.
+  REV / 1.16E13 0. 705. /
+H2+O=OH+H                                 2.46E13   0.      9840.
+  REV / 1.07E13 0. 7900. /
+H+H+M=H2+M                                3.6E15    0.         0.
+  REV / 1.46E16 0. 104000. /
+H+O2+M=HO2+M                              3.6E15    0.         0.
+  REV / 3.01E15 0. 47800. /
+HO2+HO2=H2O2+O2                           1.0E13    0.         0.
+  REV / 1.30E14 0. 40000. /
+OH+OH+M=H2O2+M                            1.11E16   0.      1920.
+  REV / 7.40E17 0. 47000. /
+H+H2O2=H2+HO2                             1.17E14   0.     11800.
+  REV / 1.55E14 0. 28500. /
+END

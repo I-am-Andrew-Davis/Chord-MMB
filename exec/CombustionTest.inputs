@@ -1,0 +1,191 @@
+#====================================================================
+#
+# Rayleigh-Taylor Instability Problem
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/rtflow.030000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 100
+file.plot_prefix = plot/rtflow.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 10000
+file.checkpoint_prefix = checkpoint/rtflow.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = CombustionTest
+
+#--------------------------------------------------------------------
+# Thermally Perfect Multispecies
+#--------------------------------------------------------------------
+therm.schmidt_num = 1.0
+# The different species in the simulation
+# Make sure the last species is the one to absorb the error for species
+# conservation (most likely should be N2)
+therm.species = O2 N2
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Mass fraction of each species in the upper portion
+ibc.upper_specs = O2 N2
+ibc.upper_mfs = 0.5 0.5
+# Mass fraction of each species in the lower portion
+ibc.lower_specs = O2 N2
+ibc.lower_mfs = 0.5 0.5
+# Upper density
+ibc.upper_rho = 2.0
+# Lower density
+ibc.lower_rho = 1.0
+# Gravity force (must be negative to act in the negative y direction)
+ibc.grav_force = -0.1
+ibc.init_pressure = 150000.
+ibc.tag_variable = density
+ibc.tag_threshold = 0.2
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 64 256 256
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0.0 0.0 0.0
+
+# Physical domain length
+grid.domain_length = 0.25 1.0 1.0
+
+# Coordinate system (comment out to use Cartesian)
+# coordsys.type = warped
+# coordsys.scale = 0.1 0.05 0.0
+# coordsys.relative_tolerance = 1.0e-12
+# coordsys.absolute_tolerance = 1.0e-13
+# coordsys.maximum_iterations = 100
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Reynolds number (optional: default 1.)
+fluid.Re = 200
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# To solve for dynamic viscosity based on temperature, use
+fluid.mu = -1.
+# To use a constant dynamic viscosity, use
+#fluid.mu = 1.7894E-5
+
+# Density (optional: default 1.2250 (kg/m&3))
+#fluid.rho = 1.
+
+# Temperature (optional: default 288.15 (K))
+#fluid.T = 298.15
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# To solve for thermal conductivity based on temperature, use
+fluid.K = -1.
+# To use a constant thermal conductivity, use
+#fluid.K = 2.5326E-2
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 1000000
+
+# Initial solution time (optional: default 0.0)
+#sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 1000.
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt =  1.5E-6
+
+# Limit on the time step growth (optional: default 1.1)
+#sol.max_dt_growth = 1.
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 0.3
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 1.
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening)
+# Options are FourthOrderPPM, FourthOrderCentral, FirstOrderGodunov
+# (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+#limit.fourth_order_artificial_viscosity_coef = 0.3
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 4 4
+
+# Regridding interval for each level
+amr.regrid_interval = -1 -1 -1
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 0
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1

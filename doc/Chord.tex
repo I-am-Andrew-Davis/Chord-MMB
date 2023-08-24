@@ -1,0 +1,28 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Compile with pdflatex                                                     %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\def\havefulldoc{1}
+\input{definitions}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                              %%
+%% MAIN DOCUMENT                %%
+%%                              %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\section{Classes}
+
+\subsection{Tagging Cells}
+
+\path{TagLevel} is a class that holds methods for tagging cells on a level.
+\path{TagMethod} is a abstract base class for these methods.
+The \path{TagLevel} class is constructed for the \path{AMRLevelCNS} class by the \path{AMRLevelCNSFactory} object.
+This class may itself use \path{TagLevelFactory} to construct the tag level.
+This is a bit superfluous but allows for quite a bit of flexibility.
+
+\end{document}

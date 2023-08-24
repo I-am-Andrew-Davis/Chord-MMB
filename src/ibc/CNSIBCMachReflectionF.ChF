@@ -1,0 +1,455 @@
+C       _______               __
+C      / ___/ /  ___  __  ___/ /
+C     / /__/ _ \/ _ \/ _\/ _  /
+C     \___/_//_/\___/_/  \_._/
+C     Please refer to Copyright.txt, in Chord's root directory.
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+#if (CH_SPACEDIM > 1)
+
+c ----------------------------------------------------------------------
+c  Sets an initial uniform conservative solution on the grid.  Assumes
+c  a calorically perfect gas.
+c
+c  U                <=  Conservative state
+c  box               => Where to initialize
+c  X                 => Physical coordinates of each point
+c  gamma             => Specific heat ratio
+c  xBase             => Starting x-location of the shock
+c  p0                => Pressure in front of shock
+c  r0                => Density in front of shock
+c  p1                => Pressure behind the shock
+c  r1                => Density behind the shock
+c  u1                => x-component of velocity behind the shock
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCMACHREFLECTIONINIT(
+     &   CHF_FRA[U],
+     &   CHF_BOX[box],
+     &   CHF_CONST_FRA[X],
+     &   CHF_CONST_REAL[gamma],
+     &   CHF_CONST_REAL[xBase],
+     &   CHF_CONST_REAL[p0],
+     &   CHF_CONST_REAL[r0],
+     &   CHF_CONST_REAL[p1],
+     &   CHF_CONST_REAL[r1],
+     &   CHF_CONST_REAL[u1])
+
+      integer CHF_AUTODECL[i]
+
+      real_t ke1  ! Kinetic energy behind the shock
+
+      ke1 = half*u1*u1
+
+      CHF_AUTOMULTIDO[box;i]
+         if (X(CHF_AUTOIX[i], 0) .ge. xBase) then
+            U(CHF_AUTOIX[i],URHO ) = r0
+            CHF_DTERM[
+               U(CHF_AUTOIX[i],UMOMX) = zero * r0 ;
+               U(CHF_AUTOIX[i],UMOMY) = zero * r0 ;
+               U(CHF_AUTOIX[i],UMOMZ) = zero * r0 ]
+            U(CHF_AUTOIX[i],UENG ) = p0 / (gamma - one)
+         else
+            U(CHF_AUTOIX[i],URHO ) = r1
+            CHF_DTERM[
+               U(CHF_AUTOIX[i],UMOMX) = u1   * r1 ;
+               U(CHF_AUTOIX[i],UMOMY) = zero * r1 ;
+               U(CHF_AUTOIX[i],UMOMZ) = zero * r1 ]
+            U(CHF_AUTOIX[i],UENG ) = p1 / (gamma - one) + r1*ke1
+         endif
+      CHF_ENDDO
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Sets an initial primitive variables for multi-species mach reflection
+c
+c  U                <=  Conservative state
+c  box               => Where to initialize
+c  X                 => Physical coordinates of each point
+c  rcomp             => Density component
+c  pcomp             => Pressure component
+c  tcomp             => Temperature component
+c  momcomp           => Momentum component of interest
+c  compstart         => First component of the species equations
+c  numspecies        => Number of species
+c  gamma             => Specific heat ratio
+c  xBase             => Starting x-location of the shock
+c  p0                => Pressure in front of shock
+c  r0                => Density in front of shock
+c  p1                => Pressure behind the shock
+c  r1                => Density behind the shock
+c  u1                => x-component of velocity behind the shock
+c  mf0               => Mass fraction in front of the shock
+c  mf1               => Mass fraction behind the shock
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCSPECMACHREFLECTIONINIT(
+     &     CHF_FRA[W],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[X],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[momcomp],
+     &     CHF_CONST_INT[compstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_REAL[xBase],
+     &     CHF_CONST_REAL[p0],
+     &     CHF_CONST_REAL[r0],
+     &     CHF_CONST_REAL[p1],
+     &     CHF_CONST_REAL[r1],
+     &     CHF_CONST_REAL[u1],
+     &     CHF_CONST_VR[mf0],
+     &     CHF_CONST_VR[mf1])
+
+      integer CHF_AUTODECL[i]
+      integer comp, scomp
+
+      CHF_AUTOMULTIDO[box;i]
+         if (X(CHF_AUTOIX[i], 0) .ge. xBase) then
+            W(CHF_AUTOIX[i],rcomp ) = r0
+            CHF_DTERM[
+            W(CHF_AUTOIX[i],momcomp) = zero;
+            W(CHF_AUTOIX[i],momcomp+1) = zero;
+            W(CHF_AUTOIX[i],momcomp+2) = zero]
+            W(CHF_AUTOIX[i],pcomp) = p0
+            W(CHF_AUTOIX[i],tcomp) = -1.
+            do comp = 0, numspecies - 1
+               scomp = compstart + comp
+               W(CHF_AUTOIX[i],scomp) = mf0(comp)
+            enddo
+         else
+            W(CHF_AUTOIX[i],rcomp ) = r1
+            CHF_DTERM[
+            W(CHF_AUTOIX[i],momcomp) = u1;
+            W(CHF_AUTOIX[i],momcomp+1) = zero;
+            W(CHF_AUTOIX[i],momcomp+2) = zero]
+            W(CHF_AUTOIX[i],pcomp) = p1
+            W(CHF_AUTOIX[i],tcomp) = -1.
+            do comp = 0, numspecies - 1
+               scomp = compstart + comp
+               W(CHF_AUTOIX[i],scomp) = mf1(comp)
+            enddo
+         endif
+      CHF_ENDDO
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Sets the primitive state on boundary faces in y-direction for the
+c  Mach reflection problem
+c
+c  W                <=  Primitive state corrected for BC (face-
+c                       centered)
+c  W                 => Primitive state from interior scheme (face-
+c                       centered)
+c  box               => Box of boundary faces to adjust
+c  X                 => Physical coordinates of each point
+c  noSlip            => T - Use no-slip conditions on wall
+c                       F - Use slip conditions *or* inertial only (e.g., there                         is no viscous terms)
+c  W                <=  Conservative state
+c  box               => Where to initialize
+c  rho               => Freestream density
+c  p                 => Freestream pressure
+c  vel               => Freestream velocity
+c  gamma             => Gamma
+c
+c  size = 0.25
+c  outerflat buffer may be preferred.
+c  radmax = 0.5 domain width
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCMACHREFLECTIONBCY(
+     &   CHF_FRA[Wface],
+     &   CHF_BOX[boundaryFaceBox],
+     &   CHF_CONST_FRA[Wcell],
+     &   CHF_CONST_FRA[X],
+     &   CHF_CONST_INT[noSlip],
+     &   CHF_CONST_INT[lohiSign],
+     &   CHF_CONST_REAL[alpha],
+     &   CHF_CONST_REAL[p0],
+     &   CHF_CONST_REAL[r0],
+     &   CHF_CONST_REAL[p1],
+     &   CHF_CONST_REAL[r1],
+     &   CHF_CONST_REAL[u1],
+     &   CHF_CONST_REAL[xsloc])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+
+      real_t cosalpha, sinalpha
+      real_t unormFace, unormCell, utangFace, rho, pres, c
+      real_t unormDiff, presLimit, rhoLimit
+
+c-----Bottom solid boundary in y-direction (Ramp)
+c*****Deprecated for the wall (bottom) BC. Still in use for Dirichlet
+c*****Generalized version exists in CNSIBC.H as computeWallPrimState
+
+      if (lohisign .eq. -1) then
+c        On ramp parameters
+         cosalpha = cos(alpha)
+         sinalpha = sin(alpha)
+
+c        Normal points into domain
+         CHF_AUTOMULTIDO[boundaryFaceBox;i]
+            if (X(CHF_AUTOIX[i], 0) .gt. zero) then
+c              On ramp
+               unormFace = cosalpha*Wface(CHF_AUTOIX[i], WVELY) -
+     &                     sinalpha*Wface(CHF_AUTOIX[i], WVELX)
+               unormCell = cosalpha*Wcell(CHF_AUTOIX[i], WVELY) -
+     &                     sinalpha*Wcell(CHF_AUTOIX[i], WVELX)
+               utangFace = cosalpha*Wface(CHF_AUTOIX[i], WVELX) +
+     &                     sinalpha*Wface(CHF_AUTOIX[i], WVELY)
+c**   FIXME We should be able to do this but it does affect the solution.  Test
+c**   with num_cells = 192 48 24 and 1 level of refinement.
+c               Wface(CHF_AUTOIX[i], WVELX) = utang*cosalpha
+c               Wface(CHF_AUTOIX[i], WVELY) = utang*sinalpha
+            else
+c              Before ramp
+               unormFace = Wface(CHF_AUTOIX[i], WVELY)
+               unormCell = Wcell(CHF_AUTOIX[i], WVELY)
+c               Wface(CHF_AUTOIX[i], WVELY) = zero
+            endif
+c$$$            rho    = max(Wcell(CHF_AUTOIX[i], WRHO ), smallr)
+c$$$            pres   = max(Wface(CHF_AUTOIX[i], WPRES), smallp)
+c$$$            c      = sqrt(gamma * pres / rho)
+
+c-- Limiting -------------------------------------------------------------------
+c           unormFace is interpolated.  Logically, it must be between 0 and
+c           unormCell.  Limit unormFace so it is in this range.
+            if (unormFace*unormCell .lt. zero) then
+               unormFace = zero
+            elseif (abs(unormFace) .gt. abs(unormCell)) then
+               unormFace = unormCell
+            endif
+
+c           Knowing unormFace and unormCell, we can now estimate the limit of
+c           the thermodynamic state at the face.  We use an acoustic correction
+c           based on the difference between the normal velocity at the cell
+c           center and at the face
+            unormDiff = unormCell - unormFace
+            rho    = max(Wcell(CHF_AUTOIX[i], WRHO ), smallr)
+            pres   = max(Wcell(CHF_AUTOIX[i], WPRES), smallp)
+            c      = sqrt(gamma * pres / rho)
+            presLimit = pres + lohiSign * rho * unormDiff * c
+            rhoLimit = rho*(presLimit/pres)**(one/gamma)
+
+c           Now limit the density and pressure at the face
+            if (unormFace*lohiSign .gt. zero) then  ! Compression
+c              Pressure and density should increase approaching the wall
+               rho  = max(rhoLimit, Wface(CHF_AUTOIX[i], WRHO))
+               pres = max(presLimit, Wface(CHF_AUTOIX[i], WPRES))
+            else                                    ! Expansion
+c              Pressure and density should decrease approaching the wall
+               rho  = min(rhoLimit, Wface(CHF_AUTOIX[i], WRHO))
+               pres = min(presLimit, Wface(CHF_AUTOIX[i], WPRES))
+            endif
+            rho    = max(rho, smallr)
+            pres   = max(pres, smallp)
+            c      = sqrt(gamma * pres / rho)
+c-- End of limiting ------------------------------------------------------------
+
+c           Acoustic correction: delta u = delta p/(rho*c)
+            Wface(CHF_AUTOIX[i], WPRES) =
+     &         pres + lohiSign * rho * unormFace * c
+c           Isentropic correction: rho2/rho1 = (p2/p1)^(1/gamma)
+            Wface(CHF_AUTOIX[i], WRHO) =
+     &         rho*(Wface(CHF_AUTOIX[i], WPRES)/pres)**(one/gamma)
+
+c        
+            if (noSlip .eq. 1) then
+               CHF_DTERM[
+                  Wface(CHF_AUTOIX[i], WVELX) = zero;
+                  Wface(CHF_AUTOIX[i], WVELY) = zero;
+                  Wface(CHF_AUTOIX[i], WVELZ) = zero]
+               else
+c            enforce slip condition.
+            endif
+         CHF_ENDDO
+
+c-----Top boundary in y-direction (moving Dirichlet)
+
+      else
+c        x-location of the shock wave         
+         CHF_AUTOMULTIDO[boundaryFaceBox;i]
+            if (X(CHF_AUTOIX[i], 0) .ge. xsloc) then
+               Wface(CHF_AUTOIX[i],WRHO ) = r0
+               CHF_DTERM[
+                  Wface(CHF_AUTOIX[i],WVELX) = zero;
+                  Wface(CHF_AUTOIX[i],WVELY) = zero;
+                  Wface(CHF_AUTOIX[i],WVELZ) = zero]
+               Wface(CHF_AUTOIX[i],WPRES) = p0
+            else
+               Wface(CHF_AUTOIX[i],WRHO ) = r1
+               CHF_DTERM[
+                  Wface(CHF_AUTOIX[i],WVELX) = u1;
+                  Wface(CHF_AUTOIX[i],WVELY) = zero;
+                  Wface(CHF_AUTOIX[i],WVELZ) = zero]
+               Wface(CHF_AUTOIX[i],WPRES) = p1
+            endif
+         CHF_ENDDO
+      endif
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c  Sets the primitive state on boundary faces in y-direction for the
+c  Mach reflection problem for the multispecies problem
+c
+c  W                <=  Primitive state corrected for BC (face-
+c                       centered)
+c  W                 => Primitive state from interior scheme (face-
+c                       centered)
+c  box               => Box of boundary faces to adjust
+c  X                 => Physical coordinates of each point
+c  W                <=  Conservative state
+c  box               => Where to initialize
+c  rho               => Freestream density
+c  p                 => Freestream pressure
+c  vel               => Freestream velocity
+c  gamma             => Gamma
+c  xsloc             => Location of the shock wave
+c  xwallloc          => Location of the end of the slip wall portion
+c
+c  size = 0.25
+c  outerflat buffer may be preferred.
+c  radmax = 0.5 domain width
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCCOMBMACHREFLECTIONBCY(
+     &   CHF_FRA[Wface],
+     &   CHF_BOX[boundaryFaceBox],
+     &   CHF_CONST_FRA[Wcell],
+     &   CHF_CONST_FRA[X],
+     &   CHF_CONST_INT[lohiSign],
+     &   CHF_CONST_REAL[alpha],
+     &   CHF_CONST_REAL[p0],
+     &   CHF_CONST_REAL[r0],
+     &   CHF_CONST_REAL[p1],
+     &   CHF_CONST_REAL[r1],
+     &   CHF_CONST_REAL[u1],
+     &   CHF_CONST_REAL[xsloc],
+     &   CHF_CONST_REAL[xwallloc])
+
+#include "EosCommon.fh"
+
+      integer CHF_AUTODECL[i]
+
+      real_t cosalpha, sinalpha
+      real_t unormFace, unormCell, utangFace, rho, pres, c
+      real_t unormDiff, presLimit, rhoLimit
+
+c-----Bottom solid boundary in y-direction (Ramp)
+c*****FIXME Make this general and place in CNSIBCF.ChF
+
+      if (lohisign .eq. -1) then
+c        On ramp parameters
+         cosalpha = cos(alpha)
+         sinalpha = sin(alpha)
+
+c     Normal points into domain
+         CHF_AUTOMULTIDO[boundaryFaceBox;i]
+c     If we are at the slip wall location, just extrapolate
+            if (X(CHF_AUTOIX[i], 0) .lt. xwallloc) then
+               CHF_DTERM[
+               Wface(CHF_AUTOIX[i], WVELX)=Wcell(CHF_AUTOIX[i], WVELX);
+               Wface(CHF_AUTOIX[i], WVELY)=Wcell(CHF_AUTOIX[i], WVELY);
+               Wface(CHF_AUTOIX[i], WVELZ)=Wcell(CHF_AUTOIX[i], WVELZ)]
+               Wface(CHF_AUTOIX[i], WPRES)=Wcell(CHF_AUTOIX[i], WPRES)
+               Wface(CHF_AUTOIX[i], WRHO)=Wcell(CHF_AUTOIX[i], WRHO)
+            else
+               if (X(CHF_AUTOIX[i], 0) .gt. zero) then
+c     On ramp
+                  unormFace = cosalpha*Wface(CHF_AUTOIX[i], WVELY) -
+     &                 sinalpha*Wface(CHF_AUTOIX[i], WVELX)
+                  unormCell = cosalpha*Wcell(CHF_AUTOIX[i], WVELY) -
+     &                 sinalpha*Wcell(CHF_AUTOIX[i], WVELX)
+                  utangFace = cosalpha*Wface(CHF_AUTOIX[i], WVELX) +
+     &                 sinalpha*Wface(CHF_AUTOIX[i], WVELY)
+               else
+c     Before ramp
+                  unormFace = Wface(CHF_AUTOIX[i], WVELY)
+                  unormCell = Wcell(CHF_AUTOIX[i], WVELY)
+               endif
+
+c--   Limiting -----------------------------------------------------------------
+c     unormFace is interpolated.  Logically, it must be between 0 and
+c     unormCell.  Limit unormFace so it is in this range.
+               if (unormFace*unormCell .lt. zero) then
+                  unormFace = zero
+               elseif (abs(unormFace) .gt. abs(unormCell)) then
+                  unormFace = unormCell
+               endif
+
+c     Knowing unormFace and unormCell, we can now estimate the limit of
+c     the thermodynamic state at the face.  We use an acoustic correction
+c     based on the difference between the normal velocity at the cell
+c     center and at the face
+               unormDiff = unormCell - unormFace
+               rho    = max(Wcell(CHF_AUTOIX[i], WRHO ), smallr)
+               pres   = max(Wcell(CHF_AUTOIX[i], WPRES), smallp)
+               c      = sqrt(gamma * pres / rho)
+               presLimit = pres + lohiSign * rho * unormDiff * c
+               rhoLimit = rho*(presLimit/pres)**(one/gamma)
+
+c     Now limit the density and pressure at the face
+               if (unormFace*lohiSign .gt. zero) then ! Compression
+c     Pressure and density should increase approaching the wall
+                  rho  = max(rhoLimit, Wface(CHF_AUTOIX[i], WRHO))
+                  pres = max(presLimit, Wface(CHF_AUTOIX[i], WPRES))
+               else             ! Expansion
+c     Pressure and density should decrease approaching the wall
+                  rho  = min(rhoLimit, Wface(CHF_AUTOIX[i], WRHO))
+                  pres = min(presLimit, Wface(CHF_AUTOIX[i], WPRES))
+               endif
+               rho    = max(rho, smallr)
+               pres   = max(pres, smallp)
+               c      = sqrt(gamma * pres / rho)
+c--   End of limiting ---------------------------------------------------------
+
+c     Acoustic correction: delta u = delta p/(rho*c)
+               Wface(CHF_AUTOIX[i], WPRES) =
+     &              pres + lohiSign * rho * unormFace * c
+c     Isentropic correction: rho2/rho1 = (p2/p1)^(1/gamma)
+               Wface(CHF_AUTOIX[i], WRHO) =
+     &              rho*(Wface(CHF_AUTOIX[i], WPRES)/pres)**(one/gamma)
+
+               CHF_DTERM[
+               Wface(CHF_AUTOIX[i], WVELX) = zero;
+               Wface(CHF_AUTOIX[i], WVELY) = zero;
+               Wface(CHF_AUTOIX[i], WVELZ) = zero]
+            endif
+         CHF_ENDDO
+
+c-----Top boundary in y-direction (moving Dirichlet)
+
+      else
+c        x-location of the shock wave         
+         CHF_AUTOMULTIDO[boundaryFaceBox;i]
+            if (X(CHF_AUTOIX[i], 0) .ge. xsloc) then
+               Wface(CHF_AUTOIX[i],WRHO ) = r0
+               CHF_DTERM[
+                  Wface(CHF_AUTOIX[i],WVELX) = zero;
+                  Wface(CHF_AUTOIX[i],WVELY) = zero;
+                  Wface(CHF_AUTOIX[i],WVELZ) = zero]
+               Wface(CHF_AUTOIX[i],WPRES) = p0
+            else
+               Wface(CHF_AUTOIX[i],WRHO ) = r1
+               CHF_DTERM[
+                  Wface(CHF_AUTOIX[i],WVELX) = u1;
+                  Wface(CHF_AUTOIX[i],WVELY) = zero;
+                  Wface(CHF_AUTOIX[i],WVELZ) = zero]
+               Wface(CHF_AUTOIX[i],WPRES) = p1
+            endif
+         CHF_ENDDO
+      endif
+
+      return
+      end
+#endif

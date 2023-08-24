@@ -1,0 +1,69 @@
+ELEMENTS   H   O    C   N
+END
+SPECIES
+CH4 CH3 CH2 CH CH2O HCO CO2 CO H2 H O2 O OH HO2 H2O2 H2O
+           N2
+END
+REACTIONS
+CH3+H+M=CH4+M                  8.0E26      -3.         0.
+CH4+O2=CH3+HO2                 7.9E13       0.     56000.
+CH4+H=CH3+H2                   2.2E4        3.      8750.
+CH4+O=CH3+OH                   1.6E6        2.36    7400.
+CH4+OH=CH3+H2O                 1.6E6        2.1     2460.
+CH3+O=CH2O+H                   6.8E13       0.         0.
+CH3+OH=CH2O+H2                 1.0E12       0.         0.
+CH3+OH=CH2+H2O                 1.5E13       0.      5000.
+CH3+H=CH2+H2                   9.0E13       0.     15100.
+CH2+H=CH+H2                    1.4E19      -2.         0.
+CH2+OH=CH2O+H                  2.5E13       0.         0.
+CH2+OH=CH+H2O                  4.5E13       0.      3000.
+CH+O2=HCO+O                    3.3E13       0.         0.
+CH+O=CO+H                      5.7E13       0.         0.
+CH+OH=HCO+H                    3.0E13       0.         0.
+CH+CO2=HCO+CO                  3.4E12       0.       690.
+CH2+CO2=CH2O+CO                1.1E11       0.      1000.
+CH2+O=CO+H+H                   3.0E13       0.         0.
+CH2+O=CO+H2                    5.0E13       0.         0.
+CH2+O2=CO2+H+H                 1.6E12       0.      1000.
+CH2+O2=CH2O+O                  5.0E13       0.      9000.
+CH2+O2=CO2+H2                  6.9E11       0.       500.
+CH2+O2=CO+H2O                  1.9E10       0.     -1000.
+CH2+O2=CO+OH+H                 8.6E10       0.      -500.
+CH2+O2=HCO+OH                  4.3E10       0.      -500.
+CH2O+OH=HCO+H2O                3.43E9       1.18    -447.
+CH2O+H=HCO+H2                  2.19E8       1.77    3000.
+CH2O+M=HCO+H+M                 3.31E16      0.     81000.
+CH2O+O=HCO+OH                  1.81E13      0.      3082.
+HCO+OH=CO+H2O                  5.0E12       0.         0.
+HCO+M=H+CO+M                   1.6E14       0.     14700.
+HCO+H=CO+H2                    4.0E13       0.         0.
+HCO+O=CO2+H                    1.0E13       0.         0.
+HCO+O2=HO2+CO                  3.3E13      -0.4        0.
+CO+O+M=CO2+M                   3.2E13       0.     -4200.
+CO+OH=CO2+H                    1.51E7       1.3     -758.
+CO+O2=CO2+O                    1.6E13       0.     41000.
+HO2+CO=CO2+OH                  5.8E13       0.     22934.
+H2+O2=OH+OH                    1.7E13       0.     47780.
+OH+H2=H2O+H                    1.17E9       1.3     3626.
+H+O2=OH+O                      5.13E16     -0.816  16507.
+O+H2=OH+H                      1.8E10       1.0     8826.
+H+O2+M=HO2+M                   3.61E17     -0.72       0.
+   H2O/18.6/  CO2/4.2/  H2/2.86/  CO/2.11/  N2/1.26/
+OH+HO2=H2O+O2                  7.5E12       0.         0.
+H+HO2=OH+OH                    1.4E14       0.      1073.
+O+HO2=O2+OH                    1.4E13       0.      1073.
+OH+OH=O+H2O                    6.0E8        1.3        0.
+H+H+M=H2+M                     1.0E18      -1.0        0.
+H+H+H2=H2+H2                   9.2E16      -0.6        0.
+H+H+H2O=H2+H2O                 6.0E19      -1.25       0.
+H+H+CO2=H2+CO2                 5.49E20     -2.0        0.
+H+OH+M=H2O+M                   1.6E22      -2.0        0.
+   H2O/5/
+H+O+M=OH+M                     6.2E16      -0.6        0.
+   H2O/5/
+H+HO2=H2+O2                    1.25E13      0.         0.
+HO2+HO2=H2O2+O2                2.0E12       0.         0.
+H2O2+M=OH+OH+M                 1.3E17       0.     45500.
+H2O2+H=HO2+H2                  1.6E12       0.      3800.
+H2O2+OH=H2O+HO2                1.0E13       0.      1800.
+END

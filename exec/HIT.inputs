@@ -1,0 +1,157 @@
+#====================================================================
+#
+# Homogeneous Isotropic Turbulence Problem
+#
+#
+# Note: This case is designed for forced compressible HIT with a
+#       random spectral initial condition
+#
+# Note: For the HIT problem, the PPM limiter should be on
+#       otherwise, the under-resolution creates oscillations
+#
+# Note: All inputs are dimensional!
+#
+#====================================================================
+sim.problem_type = ProblemIsotropicTurbulence
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+# file.restart_file = checkpoint/IsotropicTurbulence.000500.3d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 50
+file.plot_prefix = plot/M0,4_K256_N64_constmu.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 500
+file.checkpoint_prefix = checkpoint/IsotropicTurbulence.
+#--------------------------------------------------------------------
+# Physics and Turbulence Modeling
+#--------------------------------------------------------------------
+
+# Forced turbulence with Taylor-Green ICs
+physics.fluid_models = inertial viscous
+
+turb.turb_forcing = spectral
+turb.spectral_forcing_interval = 2 4
+turb.spectral_forcing_eps = 1.2582e+10
+turb.spectral_forcing_dt = 9.534e-09  # tau_K/4
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+#ibc.init_density = 1.0
+ibc.init_kinetic_energy = 5.6727e+03
+ibc.init_temperature = 293.0
+ibc.init_pressure = 101325.0
+
+# Tag method -- options: gradient, value, vorticity
+#                        vms, vms_vorticity
+ibc.tag_type = vms
+# Tag variable
+ibc.tag_variable = density
+# Tag threshold
+ibc.tag_threshold = 0.2
+
+# Define which directions are periodic
+ibc.periodicity = 1 1 1
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 64 64 64
+
+# Physical domain length
+grid.domain_length = 1.9523e-04 1.9523e-04 1.9523e-04
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = 1.83e-5
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = 1.83e-5
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# CFL number (optional: default 1.0)
+sol.cfl = 0.8
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 1000
+
+# Initial solution time (optional: default 0.0)
+sol.initial_time = 0.
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+sol.max_time = 5.41e-06  # 20*tau_ell
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary
+# (sets PPM_limiter, limit_face_values, use_flattening, face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov
+# (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 0
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity_coef = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+limit.fourth_order_artificial_viscosity_coef = 0.0
+
+#--------------------------------------------------------------------
+# AMR (NOT YET IMPLEMENTED!!!)
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 2 2 2 2
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 2
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 16
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1

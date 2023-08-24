@@ -1,0 +1,28 @@
+Configuring the limiter
+=======================
+
+useHighOrderLimiter should always be true.
+
+Standard 4thO PPM
+-----------------
+CRDparam::g_usePPMlimiter = true
+CRDparam::g_useFlattening = true
+CRDparam::g_useHighOrderLimiter = true
+g_limitFaceValues = true
+
+* You can turn off both limiting and flattening
+
+4th order central
+-----------------
+CRDparam::g_usePPMlimiter = true
+CRDparam::g_useFlattening = false
+CRDparam::g_useHighOrderLimiter = true
+g_limitFaceValues = false
+
+1st order Godunov scheme
+------------------------
+CRDparam::g_usePPMlimiter = false
+CRDparam::g_useFlattening = true or false
+CRDparam::g_useHighOrderLimiter = true
+g_limitFaceValues = true or false
+

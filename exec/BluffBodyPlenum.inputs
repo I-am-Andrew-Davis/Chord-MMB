@@ -1,0 +1,293 @@
+#====================================================================
+#
+# Basic Testing
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/bluffBodyPlenum.check.000000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 20
+file.plot_prefix = plot/bluffBodyPlenum.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 100
+file.checkpoint_prefix = checkpoint/bluffBodyPlenum.check.
+
+file.plot_mapped_derivs = 1
+
+#--------------------------------------------------------------------
+# Simulation Physics
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemGeneralized
+
+physics.fluid_models = inertial viscous #multispecies
+
+#--------------------------------------------------------------------
+# Thermally Perfect Multispecies
+#--------------------------------------------------------------------
+
+# If schmidt_number > 0., then schmidt number is used
+#therm.schmidt_num = 1.
+# Default uses the Lewis numbers for each species defined in
+# Mechanism_files/speciesLewisNumbers.inp
+#therm.lewis_num = 1.
+
+# The last species absorbs the error
+#therm.species = O2 N2 CO2
+
+#therm.use_species_correction = true
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Read grid from file, overrides all grid and coordsys options
+grid.file = grids/MVP4_4mm_Chord_2D_strechPlenum_slipInlet.cgns
+#grid.file = grids/MVP4_4mm_Chord_3D_strechPlenum_slipInlet.cgns
+
+#--------------------------------------------------------------------
+# Solution states
+#--------------------------------------------------------------------
+
+state.names = "inlet" "outlet" "wall" "stagnation"
+state.inlet_frame-velocity = 15.7 0.0 0.0
+state.inlet_density = 1.1349
+state.inlet_velocity = 15.7 0.0 0.0
+state.inlet_temperature = 309.9
+
+state.outlet_frame-velocity = 15.7 0.0 0.0
+state.outlet_density = 1.1349
+state.outlet_velocity = 15.7 0.0 0.0
+state.outlet_temperature = 309.9
+
+state.stagnation_frame-velocity = 2.0 0.0 0.0
+state.stagnation_density = 1.1349
+state.stagnation_velocity = 2.0 0.0 0.0
+state.stagnation_temperature = 309.9
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Periodicity
+ibc.periodicity = 0 0 1
+
+# Initial values
+ibc.initial_state = inlet
+
+# Define default boundary condition types and states
+ibc.bc_type-default  = AdiabaticWall
+ibc.bc_state-default = wall
+
+# Left most boundary ("inlet" reference state)
+ibc.bc_type-dom-31_x_lo = Inflow
+ibc.bc_type-dom-32_x_lo = Inflow
+ibc.bc_state-dom-31_x_lo = inlet
+ibc.bc_state-dom-32_x_lo = inlet
+
+# Right most boundary ("outlet" reference state)
+ibc.bc_type-dom-14_x_hi  = Outflow
+ibc.bc_type-dom-18_x_hi  = Outflow
+ibc.bc_type-dom-19_x_hi  = Outflow
+ibc.bc_type-dom-20_x_hi  = Outflow
+ibc.bc_type-dom-21_x_hi = Outflow
+ibc.bc_type-dom-22_x_hi = Outflow
+ibc.bc_type-dom-5_x_hi = Outflow
+ibc.bc_state-dom-14_x_hi  = outlet
+ibc.bc_state-dom-18_x_hi  = outlet
+ibc.bc_state-dom-19_x_hi  = outlet
+ibc.bc_state-dom-20_x_hi  = outlet
+ibc.bc_state-dom-21_x_hi = outlet
+ibc.bc_state-dom-22_x_hi = outlet
+ibc.bc_state-dom-5_x_hi = outlet
+
+# The inflow/outflow boundary of the plenum ("stagnation" ref state)
+ibc.bc_type-dom-16_x_lo  = Outflow
+ibc.bc_type-dom-7_x_lo = Outflow
+ibc.bc_state-dom-16_x_lo  = stagnation
+ibc.bc_state-dom-7_x_lo = stagnation
+
+# The region immediately after the inlet ("wall" reference state)
+ibc.bc_type-dom-31_y_hi = SlipWall
+ibc.bc_type-dom-32_y_lo = SlipWall
+
+# Plenum bottom far walls ("wall" reference state)
+ibc.bc_type-dom-14_y_lo  = SlipWall
+ibc.bc_type-dom-16_y_lo  = SlipWall
+ibc.bc_type-dom-17_y_lo  = SlipWall
+
+# Plenum top far walls ("wall" reference state)
+ibc.bc_type-dom-11_y_hi = SlipWall
+ibc.bc_type-dom-7_y_hi = SlipWall
+ibc.bc_type-dom-8_y_hi = SlipWall
+
+# Plenum near walls ("wall" reference state)
+ibc.bc_type-dom-16_y_hi  = SlipWall
+ibc.bc_type-dom-7_y_lo = SlipWall
+
+# Define order of BC
+ibc.bc_order-default = 1
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions -- 3D
+#--------------------------------------------------------------------
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+#fluid.mu = -1.
+
+# Density (optional: default 1.2250 (kg/m^3))
+#fluid.rho = 1.225
+
+# Temperature (optional: default 288.15 (K))
+# Sets P = 1.0
+fluid.T = 310.
+fluid.P = 100000.
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+#fluid.K = -1.
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 320
+
+# Initial solution time (optional: default 0.0)
+sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 1.672  # ~32 flow through times
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.E-10
+
+# Limit on the time step growth (optional: default 1.1)
+#sol.max_dt_growth = 1.1
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 1.0
+
+# Initial CFD for ramping (optional: default cfl)
+# sol.initial_cfl = 1.0
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening)
+# Options are FourthOrderPPM, FourthOrderCentral, FirstOrderGodunov
+# (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Or these can be set individually, options are true, false, and 2nd
+limit.flatten_cell_convolution = 2nd
+limit.flatten_cell_deconvolution = 2nd
+limit.flatten_face_convolution = 2nd
+limit.flatten_face_deconvolution = 2nd
+
+# Limiting of deconvolutions
+# limit.deconvolution_limiting    = true
+limit.cell_deconvolution_limiting = true
+limit.face_deconvolution_limiting = true
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+#limit.fourth_order_artificial_viscosity_coef = 0.3
+
+# Provide extra limiting near boundaries
+limit.extra_bound_lim = 1
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 160 160 -1
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+#amr.tag_buffer_size = 1
+
+# Set a base level for dynamic refinement (optional: default 0)
+amr.base_level = 1
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 16
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.85
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+# Regrid to add or subtract AMR levels after restarting simulation
+# NOTE: Only add or subtract one level of AMR per restart. If more
+#       than one level is needed, restart once per every level
+#       using the updated checkpoint file. Running for a few
+#       iterations between each level addition can help smooth
+#       potential transients created by regridding
+#amr.regrid_on_restart = 0
+
+#--------------------------------------------------------------------
+# Tagging
+#--------------------------------------------------------------------
+
+tag.level_0 = physical_box 0 -0.0576 -0.078 0.2096 0.0576 0.078
+tag.level_0 = boundary dom-36 1 low
+tag.level_0 = boundary dom-180 1 high
+# To properly nest level 1, you need
+#   buffer = BF(BF^{-1}(1))/nRef^1/nRef^0 + BF(BF^{-1}(GridBufferSize))/nRef^0
+# where BF is refining and BF^{-1} coarsening by the block factor
+tag.level_0 = buffer 6
+tag.level_1 = value hydrocarbon_flame -1 2.E-9 outside
+tag.level_1 = buffer 3
+tag.level_1 = boundary dom-36 1 low
+tag.level_1 = boundary dom-180 1 high
+tag.level_1 = buffer 1

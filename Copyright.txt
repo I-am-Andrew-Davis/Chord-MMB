@@ -1,0 +1,27 @@
+Chord is free software: you can redistribute it and/or modify 
+it under the terms of the GNU General Public License as       
+published by the Free Software Foundation, either version 3 of
+the License, or (at your option) any later version.           
+                                                              
+Chord is distributed in the hope that it will be useful,      
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the 
+GNU General Public License for more details.                  
+                                                              
+You should have received a copy of the GNU General Public     
+License along with Chord.  If not, see                        
+<http://www.gnu.org/licenses/>.                               
+                                                              
+NOTE: A copy of the GPL is available in the 'doc' subdirectory
+of Chord
+                                                              
+NOTE: The Chombo library is released under a BSD-style        
+license.  At the sole discretion of the CFD & Propulsion      
+Group, software that is part of Chord software may be moved to
+the Chombo library and dual-licensed under its license.       
+                                                              
+NOTE: A modified version of the L-BFGS-B library is           
+distributed with Chord in the directory 'src/lbfgsb'.  Files  
+in that directory retain the original BSD-style license under 
+which L-BFGS-B was released.  See the License.txt file in that
+directory for more information.                               

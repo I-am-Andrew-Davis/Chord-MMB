@@ -1,0 +1,285 @@
+\newif\iffulldoc
+\ifx\havefulldoc\undefined
+  \fulldocfalse
+\else
+  \fulldoctrue
+\fi
+\documentclass[11pt]{article}
+
+%\usepackage{subfigmat}  % matrices of similar subfigures, aka small mulitples
+%                        % use this instead of subfig which can cause conflicts  
+\usepackage{graphicx}
+\usepackage[rgb]{xcolor}
+\usepackage{calc}        % Can add lengths
+\usepackage{ifthen}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{xspace}      % Spacing after some new commands
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{cancel}      % show math cancellation
+\usepackage{subfig}
+\usepackage{wrapfig}     % Wrap text around figures
+%%\usepackage{sidecap}   % Caption on side
+\usepackage{caption}     % Caption format
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{url}         % Can use \path for textt
+%%\usepackage{ctable}    % Tables with footnotes
+\usepackage{array}       % Table columns
+\usepackage{longtable}   % Table with page breaks
+\usepackage{newtxtext,newtxmath}
+%\usepackage{mathptmx}    % Times new roman font
+%\usepackage{mathpazo}  % Palatino font
+\usepackage[hypertexnames=false, pdfborder={0 0 0}]{hyperref}  % Links in the document
+\usepackage[pass,paperwidth=8.5in,paperheight=11in]{geometry}  % Papersize
+\usepackage{enumitem}
+\usepackage{pdfpages}
+\usepackage{listings}    % For code listing
+\usepackage{verbatim}    % For verbatim input
+
+\pgfplotsset{compat=1.5}
+
+%--Page formatting
+
+\setlength{\topmargin}{0.in}
+\setlength{\headheight}{0.in}
+\setlength{\headsep}{0.in}
+\setlength{\oddsidemargin}{0.in}
+\setlength{\evensidemargin}{0.in}
+\setlength{\textwidth}{6.5in}
+\setlength{\textheight}{9in}
+\setlength{\footskip}{10mm}
+
+%--Caption formatting
+
+\captionsetup{font=small,margin=10pt,maxmargin=0.1\linewidth,labelfont=bf,labelsep=quad}
+
+%--Hyperref setup
+
+% All black
+\hypersetup {
+colorlinks= true,
+urlcolor=black,
+citecolor=black,
+linkcolor=black,
+}
+
+%--Source listings formatting
+
+\lstset{language=C++,
+  basicstyle=\ttfamily,
+%  keywordstyle=\bfseries  % Not necessary for only bold
+  columns=fixed,
+  basewidth=0.5em,         % ~Same column width as verbatim
+%  numbers=left,
+  numberstyle=\scriptsize,
+%  showstringspaces=false,
+  morekeywords={shared,private}
+}
+%\lstset{
+%        language=C++,
+%        basicstyle=\scriptsize,
+%%       numbers=left,
+%%       numberstyle=,
+%        stepnumber=1,
+%        numbersep=5pt,
+%        backgroundcolor=\color{white},
+%        showspaces=false,
+%        showstringspaces=false,
+%        showtabs=false,
+%        frame=single,
+%        tabsize=2,
+%        captionpos=b,
+%        breaklines=true,
+%        breakatwhitespace=false,
+%        escapeinside={\%*}{*)}
+%}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                              %%
+%% New commands                 %%
+%%                              %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\makeatletter
+
+%--Preliminary environment
+
+\newenvironment{preliminary}%
+  {\pagestyle{plain}\pagenumbering{roman}}%
+  {\cleardoublepage\pagenumbering{arabic}}
+
+%--Roman numerals
+
+\newcommand{\rmnum}[1]{\romannumeral #1}
+\newcommand{\Rmnum}[1]{\expandafter\@slowromancap\romannumeral #1@}
+
+%--Create a \deg command
+
+\DeclareMathSymbol{\circx}{\mathord}{symbols}{"0E}
+\let\olddeg=\deg
+\renewcommand\deg{\ensuremath{\,^\circx\,}}
+
+%--A nice C++ symbol
+
+\newcommand*{\Cpp}{C\parbox{1em}{\vspace*{-0.6ex}$\scriptstyle\mspace{-1mu}+\mspace{-1mu}+$}\xspace}%
+
+%--This section creates the \un command for units and \E for exponents
+%--E.g., 2.9\un{m^{2}} or 2.9\E{-3}\un{m^{2}}
+%--Can be used in or out of math environment (math ensured in braces)
+%--also a \un* for no spacing
+
+\DeclareMathSymbol{\timesx}{\mathord}{symbols}{"02}
+\newcommand{\etimes}{\mskip1.1mu\timesx\mskip0.9mu\relax}
+\newcommand{\E}[1]{\ensuremath{\etimes10^{#1}}}
+
+\newmuskip\unitmuskip
+\newmuskip\unitpreskip
+\unitmuskip=1mu plus 0.3mu              % Change this to suit your preference
+\unitpreskip=4mu plus 1mu minus 1mu     % Change this to suit your preference
+\def\unitmskip{\penalty10000 \mskip\unitmuskip}%
+\DeclareRobustCommand\un{\@ifstar{\@unstar}{\@un}}
+\newcommand\@unstar[1]{\leavevmode
+  \ensuremath{%
+    \begingroup \fam\z@%
+    \let\,\unitmskip \unit@PreserveSpaces\@empty #1 \unit@PreserveSpaces%
+    \endgroup}}%
+\newcommand\@un[1]{\leavevmode%
+  \unskip\penalty1000%
+  \ensuremath{%
+    \@checkfordeg #1\@empty%
+    \begingroup \fam\z@%
+    \let\,\unitmskip \unit@PreserveSpaces\@empty #1 \unit@PreserveSpaces%
+    \endgroup}}
+\def\unit@PreserveSpaces#1 {#1\@ifnextchar\unit@PreserveSpaces{\@gobble}%
+  {\unitmskip \unit@PreserveSpaces\@empty}}%
+\def\@checkfordeg{\@ifnextchar\deg{\@junkrest}{\mskip\unitpreskip\@junkrest}}%
+\def\@junkrest#1\@empty{}%
+
+%--Corrections and notes
+
+\newcommand{\mnote}[1]{\marginpar{\textcolor{red}{#1}}}%
+\newcommand{\inote}[1]{\textcolor{red}{[#1]}}%
+\newcommand{\fnote}[1]{\footnote{\textcolor{red}{#1}}}%
+
+%--Compact enumeration
+
+\newcounter{cmpctenum}
+\newenvironment{compactenum}{\begin{list}{\arabic{cmpctenum}.}
+  {\usecounter{cmpctenum}
+   \setlength{\parsep}{0pt}
+   \setlength{\itemsep}{0.5ex}}
+  }
+{\end{list}}
+
+%--Compact itemize
+
+\newenvironment{compactitem}{\begin{list}{{\footnotesize$\bullet$}}
+  {%\setlength{\topsep}{0pt}
+   \setlength{\parsep}{0pt}
+   \setlength{\itemsep}{0.5ex}
+   \setlength{\leftmargin}{1.5em}
+   \setlength{\itemindent}{1.0em}}
+  }
+{\end{list}}
+
+%--Compact itemize for function arguments
+
+\newenvironment{argitem}{\begin{list}{{\footnotesize$\circ$}}
+  {\setlength{\topsep}{0pt}
+    \setlength{\parsep}{0pt}
+   \setlength{\itemsep}{0.5ex}
+   \setlength{\leftmargin}{2em}
+   \setlength{\itemindent}{-1em}}
+  }
+{\end{list}}
+
+%--Figure location which changes if full or chapter compilation
+
+\iffulldoc
+  \newcommand*{\figpre}[1]{figures/#1}
+  \newcommand*{\drawpre}[1]{drawings/#1}
+\else
+  \newcommand*{\figpre}[1]{../figures/#1}
+  \newcommand*{\drawpre}[1]{../drawings/#1}
+\fi
+
+%--Consistent references
+
+\newcommand{\figref}[1]{Figure~\ref{#1}} 
+\newcommand{\tabref}[1]{Table~\ref{#1}} 
+\newcommand{\secref}[1]{Section~\ref{#1}} 
+\newcommand{\chapref}[1]{Chapter~\ref{#1}} 
+\newcommand{\appref}[1]{Appendix~\ref{#1}} 
+
+%--Commonly used math/Chombo notation
+
+\newcommand{\ibold}{{\boldsymbol{i}}}
+\newcommand{\jbold}{{\boldsymbol{j}}}
+\newcommand{\kbold}{{\boldsymbol{k}}}
+\newcommand{\ebold}{{\boldsymbol{e}}}
+\newcommand{\pbold}{{\boldsymbol{p}}}
+\newcommand{\ubold}{{\boldsymbol{u}}}
+\newcommand{\vbold}{{\boldsymbol{v}}}
+\newcommand{\xbold}{{\boldsymbol{x}}}
+\newcommand{\bbold}{{\boldsymbol{b}}}
+\newcommand{\hbold}{{\boldsymbol{h}}}
+\newcommand{\Ubold}{{\boldsymbol{U}}}
+\newcommand{\Wbold}{{\boldsymbol{W}}}
+\newcommand{\Nbold}{{\boldsymbol{N}}}
+\newcommand{\Xbold}{{\boldsymbol{X}}}
+\newcommand{\xibold}{{\boldsymbol{\xi}}}
+\newcommand{\nablabold}{{\boldsymbol{\nabla}}}
+\newcommand{\Deltabold}{{\boldsymbol{\Delta}}}
+\newcommand{\phibold}{{\boldsymbol{\phi}}}
+\newcommand{\eboldd}{{\ebold^d}}
+\newcommand{\zerobold}{{\boldsymbol{0}}}
+\newcommand{\Dim}{{\mathbf{D}}}
+\newcommand{\NboldT}{{\Nbold^T}}
+\newcommand{\NrmT}{{\text{N}}^T}
+\newcommand{\Nrm}{{\text{N}}}
+\newcommand{\Frm}{{\text{F}}}
+\newcommand{\Wrm}{{\text{W}}}
+\newcommand{\Urm}{{\text{U}}}
+\newcommand{\Fbrm}{{\text{\bfseries F}}}
+\newcommand{\Gbrm}{{\text{\bfseries G}}}
+\newcommand{\Sbrm}{{\text{\bfseries S}}}
+\newcommand{\Ubrm}{{\text{\bfseries U}}}
+\newcommand{\Wbrm}{{\text{\bfseries W}}}
+\newcommand{\Nc}{{\mathcal{N}}}
+\newcommand{\vecnabla}{{\vec{\nabla}}}
+\newcommand{\vecx}{{\vec{x}}}
+\newcommand{\vecxi}{{\vec{\xi}}}
+
+% Full partial {numerator}{denominator}{degree}
+\newcommand*{\fpartial}[3]{\ifnum#3=1\ensuremath{\frac{\partial #1}{\partial #2}}\else\ensuremath{\frac{\partial^{#3} #1}{\partial #2^{#3}}}\fi}
+% Full partial {numerator}{denominator}{degree} with extra spacing for denom
+\newcommand*{\fpartialspc}[3]{\ifnum#3=1\ensuremath{\frac{\partial #1}{\partial #2}}\else\ensuremath{\frac{\partial^{#3} #1}{\partial #2^{\,#3}}}\fi}
+% Full mixed partial {numerator}{denom1}{degree1}{denom2}{degree2}
+\newcounter{npdeg}
+\newcommand*{\fmpartial}[5]{\setcounter{npdeg}{#3}\addtocounter{npdeg}{#5}\ensuremath{\frac{\partial^{\thenpdeg} #1}{\partial{#2}\ifnum#3>1^{#3}\fi\partial{#4}\ifnum#5>1^{#5}\fi}}}
+% Cell step subscript (argument is '+n'+ or '-n')
+\newcommand*{\hstep}[1]{\ensuremath{{\ibold#1\eboldd}}}
+% Cell half step subscript (argument is '+' or '-')
+\newcommand*{\hhstep}[1]{\ensuremath{{\ibold#1\frac{1}{2}\eboldd}}}
+% Cell half step subscript (argument is '+' or '-'), second is number of halves
+\newcommand*{\hhstepn}[2]{\ensuremath{{\ibold#1\frac{#2}{2}\eboldd}}}
+% Average angle brackets
+\newcommand*{\avg}[1]{\ensuremath{\langle #1\rangle}}
+
+% \vt = v_\theta
+\newcommand*{\vt}{\ensuremath{v_\theta}}
+
+%--Spacing
+
+\newcommand{\zapspace}{\topsep=1pt\partopsep=1pt\itemsep=1pt\parskip=2pt}
+
+\makeatother
+
+%--Float fractions
+
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.9}
+\renewcommand{\textfraction}{0.1}
+\renewcommand{\floatpagefraction}{0.9}

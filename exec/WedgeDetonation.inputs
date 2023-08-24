@@ -1,0 +1,284 @@
+#====================================================================
+#
+# Multispecies Mach reflection problem
+#
+# Two levels of refinement are required for observing close capture
+# of the shocks.  With godunov.max_level set to 2, the solution takes
+# ~3 min on 4 cores.
+#
+# If you are willing to wait, godonuv.max_level = 3 is quite
+# impressive.  (~10 min on 40 cores).
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/CMR_Ar.000018.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_period = 1.E-7
+file.plot_prefix = plot/wedgeDet.plot.
+#file.plot_JU = 1
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 1000
+file.checkpoint_prefix = checkpoint/wedgeDet.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = WedgeDetonation
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+physics.fluid_models = inertial multispecies
+
+#--------------------------------------------------------------------
+# Multispecies
+#--------------------------------------------------------------------
+
+# Specify the location of the files containing the thermodynamic data
+# (default: ./Mechanism_files/thermo.inp)
+# therm.thermo_file = ../../Mechanism_files/thermo.inp
+# Specify the location of the files containing the transport data
+# (default: ./Mechanism_files/trans.inp)
+# therm.transport_file = ../../Mechanism_files/trans.inp
+
+# If schmidt_number > 0., then schmidt number is used
+#therm.schmidt_num = 1.
+# Default uses the Lewis numbers for each species defined in
+# Mechanism_files/speciesLewisNumbers.inp
+therm.lewis_num = 1.
+
+# The last species absorbs the error
+therm.species = H2 O2 H O OH HO2 H2O2 H2O N2
+
+therm.num_of_reactions = 19
+
+therm.reaction_file = Mechanism_files/refH2model.inp
+
+# Using species correction (default: true)
+therm.use_species_correction = true
+
+# Do not solve reactions for temperatures below this one
+therm.cutoff_temperature = 600.
+
+# Resolve for Gibbs free energy only when temperature
+# has changed by this amount
+therm.temperature_diff_resolve = 5.
+
+# Which Riemann solver to use, adaptive, exact, or approx
+# (default: adaptive)
+# therm.riemann_solver = adaptive
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Viscosity and thermal conductivity are set use CEA for conditions
+# behind the normal shock
+fluid.mu = -1.
+fluid.K = -1.
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 192 48 24
+
+# Physical domain length (must be 1.0 for x and scaled by num cells
+# in other directions)
+grid.domain_length = 1.0 0.25 0.125
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 200000
+
+# Initial solution time (optional: default 0.0)
+sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 0.00014
+
+sol.initial_dt = 1.e-9
+# Limit on the time step growth (optional: default 1.1)
+sol.max_dt_growth = 1.05
+
+# CFL number (optional: default 1.0)
+# sol.max_dt_growth = 1.05
+# sol.max_dt_tolerance_factor = 1.05
+#sol.initial_cfl = 0.2
+sol.cfl = 0.8
+#sol.fixed_dt = 5.0e-7
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = SecondOrderPPM
+
+# Order of face construction (optional: default 5)
+#limit.face_order = 5
+
+# Face limiting
+limit.limit_face_values = 1
+
+# Convolution and deconvolution flattening
+
+# Use total DC flattening
+# This means convolution and deconvolution flattening is used on cells and faces
+# Can be overwritten by the specific selections below
+limit.total_dc_flattening = 2nd
+
+# Flattening of convolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.convolution_flattening = false
+
+# Flattening of deconvolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.deconvolution_flattening = false
+
+# Or these can be set individually, options are true, false, and 2nd
+#limit.flatten_cell_convolution = false
+#limit.flatten_cell_deconvolution = 2nd
+#limit.flatten_face_convolution = false
+#limit.flatten_face_deconvolution = true
+
+# Tolerance for flattening directly
+# (optional: default 0.2)
+#limit.dc_flat_tol = 0.1
+
+# Apply face construction order reduction
+# Automatically applied when total dc flattening is true
+# and face value limiting is on
+# Highly recommended for the ODW problem
+limit.use_fcor = 1
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity_coef = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3).  Note
+# that 0.42 is 0.3*gamma
+#limit.fourth_order_artificial_viscosity_coef = 0.3
+
+# Provide extra limiting near boundaries
+limit.extra_bound_lim = 1
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 1
+
+# Refinement ratio between levels
+amr.ref_ratio = 4 4 4
+
+# Regridding interval for each level
+amr.regrid_interval = 4 4 4
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+# We need 6 ghosts before the shock but the gridbuffer will add 5 and the shock
+# will be more disperse on the coarser level.
+# Then we need a value equivalent to the regrid interval, assuming the time-
+# step is restricted by the speed of the feature we are tracking.
+amr.tag_buffer_size = 4
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 16
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+#--------------------------------------------------------------------
+# Coordinate system
+#--------------------------------------------------------------------
+
+# Angle given in degrees (used to be 0.8 and 4 for inviscid)
+coordsys.ramp_angle  = 29.
+coordsys.lead_length = 0.005
+coordsys.ramp_length = 0.04
+
+#--------------------------------------------------------------------
+# IBC
+#--------------------------------------------------------------------
+
+state.names = "initial" "wall"
+state.initial_temperature = 300.
+state.initial_pressure = 101325
+state.initial_frame-velocity = 3268. 0. 0.
+state.initial_velocity = 3268. 0. 0.
+state.initial_H2 = 0.02845
+state.initial_O2 = 0.22647
+state.initial_N2 = 0.74508
+
+ibc.initial_state = initial
+
+tag.all_prepend = gradient temperature 0.05 600
+tag.level_0 = boundary dom-0 1 low
+tag.level_0 = buffer 4
+
+# Set a value to not tag if variable is less than this value
+# ibc.lo_end_threshold = 600. # Don't tag where reactions cannot occur
+
+# Number of coarse grid cells near the wall to tag
+ibc.wall_tag_cells = 1
+
+# Set boundary conditions
+ibc.bc_type-block_0_x_lo = Inflow
+ibc.bc_type-block_0_x_hi = Outflow
+ibc.bc_type-block_0_y_lo = AdiabaticWall
+ibc.bc_type-block_0_y_hi = Farfield
+
+# Set states at boundaries
+ibc.bc_state-default = wall
+ibc.bc_state-block_0_x_lo = initial
+ibc.bc_state-block_0_x_hi = initial
+ibc.bc_state-block_0_y_hi = initial
+
+ibc.bc_order-default = 1
+
+# Other interesting flow conditions
+# ibc.init_specs = H2 O2 N2
+# Specify initial mass fractions for H2:O2:N2 = 2:1:3.76
+# ibc.init_mfs = 0.02845 0.22647 0.74508
+# Specify initial mass fractions for H2:O2:N2 = 2:1:0
+#ibc.init_mfs = 0.1116 0.8884 0.
+# Specify initial mass fractions for H2:O2:N2 = 2:1:7
+#ibc.init_mfs = 0.017326 0.13792 0.844754

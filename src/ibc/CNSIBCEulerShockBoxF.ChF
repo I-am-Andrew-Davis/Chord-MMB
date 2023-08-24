@@ -1,0 +1,91 @@
+C       _______               __
+C      / ___/ /  ___  __  ___/ /
+C     / /__/ _ \/ _ \/ _\/ _  /
+C     \___/_//_/\___/_/  \_._/
+C     Please refer to Copyright.txt, in Chord's root directory.
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+
+c ----------------------------------------------------------------------
+c  Sets an initial uniform conservative solution on the grid.  Assumes
+c  a calorically perfect gas.
+c
+c  U                <=  Conservative state
+c  box               => Where to initialize
+c  rho               => Freestream density
+c  p                 => Freestream pressure
+c  vel               => Freestream velocity
+c  gamma             => Gamma
+c ----------------------------------------------------------------------
+
+      subroutine CNSIBCEULERSHOCKBOXINIT(
+     &   CHF_FRA[U],
+     &   CHF_BOX[box],
+     &   CHF_CONST_FRA[X],
+     &   CHF_CONST_REAL[rho],
+     &   CHF_CONST_REAL[p],
+     &   CHF_CONST_REAL[gamma],
+     &   CHF_CONST_REAL[rhoBx],
+     &   CHF_CONST_REAL[pBx],
+     &   CHF_CONST_REALVECT[lo],
+     &   CHF_CONST_REALVECT[hi])
+
+      integer CHF_AUTODECL[i]
+      integer icomp, comp
+
+      real_t Ucell(0:UNUM-1)
+      real_t UcellBx(0:UNUM-1)
+      real_t pt(0:CH_SPACEDIM-1)
+      real_t q2
+
+      Ucell(URHO) = rho;
+      CHF_DTERM[
+         Ucell(UMOMX) = zero;
+         Ucell(UMOMY) = zero;
+         Ucell(UMOMZ) = zero]
+      q2 = zero
+      Ucell(UENG) = p/(gamma - one) + half*rho*q2;
+
+      UcellBx(URHO) = rhoBx;
+      CHF_DTERM[
+         UcellBx(UMOMX) = zero;
+         UcellBx(UMOMY) = zero;
+         UcellBx(UMOMZ) = zero]
+      q2 = zero
+      UcellBx(UENG) = pBx/(gamma - one) + half*rhoBx*q2;
+
+      comp = 0  ! Avoid warning
+      do icomp = 0, UNUM-1
+         select case (icomp)
+         case (0)
+            comp = URHO
+         case (1)
+            comp = UENG
+         CHF_DTERM[
+         case (2)
+            comp = UMOMX;
+         case (3)
+            comp = UMOMY;
+         case (4)
+            comp = UMOMZ]
+         end select
+         CHF_AUTOMULTIDO[box;i]
+            CHF_DTERM[
+               pt(0) = X(CHF_AUTOIX[i], 0);
+               pt(1) = X(CHF_AUTOIX[i], 1);
+               pt(2) = X(CHF_AUTOIX[i], 2)]
+            if (CHF_DTERM[
+     &                   ((pt(0) - lo(0))*(pt(0) - hi(0)) .le. zero);
+     &             .and. ((pt(1) - lo(1))*(pt(1) - hi(1)) .le. zero);
+     &             .and. ((pt(2) - lo(2))*(pt(2) - hi(2)) .le. zero)])
+     &         then
+               U(CHF_AUTOIX[i], comp) = UcellBx(comp)
+            else
+               U(CHF_AUTOIX[i], comp) = Ucell(comp)
+            endif
+         CHF_ENDDO
+      enddo
+
+      return
+      end

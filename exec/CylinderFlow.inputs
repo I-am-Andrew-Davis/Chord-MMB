@@ -1,0 +1,258 @@
+#====================================================================
+#
+# Freestream Preservation Testing
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/cylinder200.130000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 10
+file.plot_prefix = plot/cylinder.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 10000
+file.checkpoint_prefix = checkpoint/cylinder.
+
+# Extra plot outputs, vorticity and density gradient
+file.plot_mapped_derivs = 1
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = CylinderFlow
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+physics.fluid_models = inertial viscous
+
+# Turbulence model
+turb.turb_model = LES
+
+# LES subgrid-scale model
+#turb.sgs_model = Smagorinsky
+turb.sgs_model = StretchedVortex
+
+# Stretched-vortex model options
+
+# OrientationModel = 0, 1, or 2
+turb.vortex_orientation_model = 0
+
+# VortexProportion is [0,1]
+turb.vortex_proportion = 1
+
+# Correction for pressure from SVS model estimate of SGS KE
+turb.use_sgs_ke_pressure_correction = 0
+
+# Coarsening method for computing SV model SGS kinetic energy estimate
+#turb.use_sgs_coarsening = 0
+
+# Coarsening ratio to be used on the coarsest (base) level
+#turb.sgs_ke_coarsest_coarsening_ratio = 1
+
+# Stretched-vortex wall-model
+turb.use_wall_model = 1
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Define which directions are periodic, 1 means it is periodic
+ibc.periodicity = 0 1 1
+
+state.names = "inlet" "outlet" "wall"
+
+state.inlet_frame-velocity = 10.0 0.0 0.0
+state.inlet_density = 1.225
+state.inlet_velocity = 10.0 0.0 0.0
+state.inlet_temperature = 288.0
+
+state.outlet_frame-velocity = 10.0 0.0 0.0
+state.outlet_density = 1.225
+state.outlet_velocity = 10.0 0.0 0.0
+state.outlet_temperature = 288.0
+
+ibc.initial_state = inlet
+
+# Fix CNSIBCGeneralizedSingleBlock.cpp so that we don't need this
+ibc.init_velocity = 17.0132 0. 0.
+ibc.init_density = 1.225
+ibc.init_temperature = 288.1
+
+# Define boundary conditions for non-periodic directions
+ibc.bc_type-default = AdiabaticWall
+ibc.bc_state-default = wall
+
+ibc.bc_type-block_0_x_hi = Farfield
+ibc.bc_state-block_0_x_hi = inlet
+
+# Define order of BC (default: 4)
+ibc.bc_order-default = 1
+
+# Set percentage for base tagging in radial direction (default: 8%)
+ibc.radial_tagging = 0.1
+ibc.tag_dir = 0
+ibc.tag_side = 0
+
+# Tag vorticity magnitude values above threshold
+ibc.tag_threshold = 1000.0 10000.0
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+# Represent number of cells in r, theta, and z
+grid.num_cells = 32 32 16
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0.0 0.0 0.0
+
+# Physical domain length
+# Represent ratio of cells in r, theta, and z
+grid.domain_length = 2. 2. 1.
+
+# Coordinate system (comment out to use Cartesian)
+coordsys.type = annulus
+# 80:1 ratio is good enough
+# Re = 400
+coordsys.inner_radius = 1.7167E-4
+coordsys.outer_radius = 1.2734E-2
+
+coordsys.radial_stretch = 4
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Reynolds number (optional: default 1.)
+# fluid.Re = 200
+
+# # Dynamic viscosity (optional: default 1.789E-5 (kg/m s))
+# fluid.mu = -1.
+
+# # Density (optional: default 1.2250 (kg/m&3))
+# fluid.rho = 1.
+
+# # Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# fluid.K = -1.
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 100000
+
+# Initial solution time (optional: default 0.0)
+#sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+# Flow has developed by this time
+sol.max_time = .0015
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt =  1.5E-6
+
+# Limit on the time step growth (optional: default 1.1)
+#sol.max_dt_growth = 1.
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = .8
+
+# Initial CFD for ramping (optional: default cfl)
+sol.initial_cfl = .8
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default set by method)
+#limit.face_order = 4
+
+# Convolution and deconvolution flattening
+# Flattening of convolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.convolution_flattening = false
+
+# Flattening of deconvolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.deconvolution_flattening = true
+
+# Or these can be set individually, options are true, false, and 2nd
+#limit.flatten_cell_convolution = false
+#limit.flatten_cell_deconvolution = 2nd
+#limit.flatten_face_convolution = false
+#limit.flatten_face_deconvolution = true
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+#limit.fourth_order_artificial_viscosity_coef = 0.3
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 4 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 20 20 20
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 4
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 64
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1

@@ -1,0 +1,296 @@
+C       _______               __
+C      / ___/ /  ___  __  ___/ /
+C     / /__/ _ \/ _ \/ _\/ _  /
+C     \___/_//_/\___/_/  \_._/
+C     Please refer to Copyright.txt, in Chord's root directory.
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+
+c     ----------------------------------------------------------------------
+c     Sets the primitive values for a square domain with 2 regions
+c     
+c     W            <=  Primitive variables
+c     box           => Where to initialize/solve
+c     X             => The physical locations on the boundary
+c     rhocomp       => Density component
+c     prescomp      => Pressure component
+c     tempcomp      => Temperature component
+c     momcomp       => Momentum component of interest
+c     compstart     => First component of the species equations
+c     numspecies    => Number of species
+c     rho1-3        => Density in regions 1-3, see CNSIBCMethaneFlame.H figure
+c     t1-3          => Temperature in regions 1-3
+c     p1-3          => Pressure in regions 1-3
+c     u1-2          => Velocity in regions 1 and 2
+c     x1-3          => X locations for regions 1, 2 and 3
+c     y1-3          => Y locations for regions 1, 2 and 3
+c     specr1-3      => Mass fractions in regions 1-3
+c     ----------------------------------------------------------------------
+
+      subroutine CNSIBCMETHANEINIT(
+     &     CHF_FRA[W],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[X],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[momcomp],
+     &     CHF_CONST_INT[compstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_REAL[rho1],
+     &     CHF_CONST_REAL[rho2],
+     &     CHF_CONST_REAL[rho3],
+     &     CHF_CONST_REAL[t1],
+     &     CHF_CONST_REAL[t2],
+     &     CHF_CONST_REAL[t3],
+     &     CHF_CONST_REAL[p1],
+     &     CHF_CONST_REAL[p2],
+     &     CHF_CONST_REAL[p3],
+     &     CHF_CONST_REALVECT[u1],
+     &     CHF_CONST_REALVECT[u2],
+     &     CHF_CONST_REALVECT[u3],
+     &     CHF_CONST_REALVECT[loEnd],
+     &     CHF_CONST_REALVECT[hiEnd],
+     &     CHF_CONST_REALVECT[loEnd3],
+     &     CHF_CONST_REALVECT[hiEnd3],
+     &     CHF_CONST_VR[specr1],
+     &     CHF_CONST_VR[specr2],
+     &     CHF_CONST_VR[specr3])
+
+      integer CHF_AUTODECL[i]
+      integer comp, scomp
+      real_t pt(0:CH_SPACEDIM-1)
+
+      CHF_AUTOMULTIDO[box;i]
+         CHF_DTERM[
+         pt(0) = X(CHF_AUTOIX[i], 0);
+         pt(1) = X(CHF_AUTOIX[i], 1);
+         pt(2) = X(CHF_AUTOIX[i], 2)]
+         if(CHF_DTERM[
+     &        pt(0) .ge. loEnd(0) .and. pt(0) .le. hiEnd(0);
+     &        .and. pt(1) .ge. loEnd(1) .and. pt(1) .le. hiEnd(1);
+     &        .and. pt(2) .ge. loEnd(2) .and. pt(2) .le. hiEnd(2)]
+     &        ) then
+            W(CHF_AUTOIX[i], rcomp) = rho2
+            W(CHF_AUTOIX[i], pcomp) = p2
+            CHF_DTERM[
+            W(CHF_AUTOIX[i], momcomp) = u2(0);
+            W(CHF_AUTOIX[i], momcomp+1) = u2(1);
+            W(CHF_AUTOIX[i], momcomp+2) = u2(2)]
+            W(CHF_AUTOIX[i], tcomp) = t2
+            do comp = 0, numspecies - 1
+               scomp = compstart + comp
+               W(CHF_AUTOIX[i],scomp) = specr2(comp)
+            enddo
+         else if(CHF_DTERM[
+     &           pt(0) .ge. loEnd3(0) .and. pt(0) .le. hiEnd3(0);
+     &           .and. pt(1) .ge. loEnd3(1) .and. pt(1) .le. hiEnd3(1);
+     &           .and. pt(2) .ge. loEnd3(2) .and. pt(2) .le. hiEnd3(2)]
+     &           ) then
+            W(CHF_AUTOIX[i], rcomp) = rho3
+            W(CHF_AUTOIX[i], pcomp) = p3
+            CHF_DTERM[
+            W(CHF_AUTOIX[i], momcomp) = u3(0);
+            W(CHF_AUTOIX[i], momcomp+1) = u3(1);
+            W(CHF_AUTOIX[i], momcomp+2) = u3(2)]
+            W(CHF_AUTOIX[i], tcomp) = t3
+            do comp = 0, numspecies - 1
+               scomp = compstart + comp
+               W(CHF_AUTOIX[i],scomp) = specr3(comp)
+            enddo
+         else
+            W(CHF_AUTOIX[i], rcomp) = rho1
+            W(CHF_AUTOIX[i], pcomp) = p1
+            CHF_DTERM[
+            W(CHF_AUTOIX[i], momcomp) = u1(0);
+            W(CHF_AUTOIX[i], momcomp+1) = u1(1);
+            W(CHF_AUTOIX[i], momcomp+2) = u1(2)]
+            W(CHF_AUTOIX[i], tcomp) = t1
+            do comp = 0, numspecies - 1
+               scomp = compstart + comp
+               W(CHF_AUTOIX[i],scomp) = specr1(comp)
+            enddo
+         endif
+      CHF_ENDDO
+
+      return
+      end
+
+c     ----------------------------------------------------------------------
+c     Sets the primitive values for a circular flame
+c     
+c     W            <=  Primitive variables
+c     box           => Where to initialize/solve
+c     X             => The physical locations on the boundary
+c     rhocomp       => Density component
+c     prescomp      => Pressure component
+c     tempcomp      => Temperature component
+c     momcomp       => Momentum component of interest
+c     compstart     => First component of the species equations
+c     numspecies    => Number of species
+c     rho1-2        => Density in regions outside and inside circle, 1 and 2
+c     t1-2          => Temperature in regions 1-2
+c     p1-2          => Pressure in regions 1-2
+c     u1-2          => Velocity in regions 1 and 2
+c     specr1-3      => Mass fractions in regions 1-3
+c     radius        => Radius of the circle
+c     center        => Center of the circle
+c     ----------------------------------------------------------------------
+
+      subroutine CNSIBC2DFLAME(
+     &     CHF_FRA[W],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[X],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[momcomp],
+     &     CHF_CONST_INT[compstart],
+     &     CHF_CONST_INT[numspecies],
+     &     CHF_CONST_REAL[Cr],
+     &     CHF_CONST_REAL[rho1],
+     &     CHF_CONST_REAL[rho2],
+     &     CHF_CONST_REAL[t1],
+     &     CHF_CONST_REAL[t2],
+     &     CHF_CONST_REAL[p1],
+     &     CHF_CONST_REAL[p2],
+     &     CHF_CONST_REALVECT[u1],
+     &     CHF_CONST_VR[specr1],
+     &     CHF_CONST_VR[specr2],
+     &     CHF_CONST_REAL[radius],
+     &     CHF_CONST_REALVECT[center])
+
+      integer CHF_AUTODECL[i]
+      integer comp, scomp
+      real_t pt(0:CH_SPACEDIM-1), currad, rhoval, pval, tval, perc
+
+      CHF_AUTOMULTIDO[box;i]
+         CHF_DTERM[
+         pt(0) = X(CHF_AUTOIX[i], 0) - center(0);
+         pt(1) = X(CHF_AUTOIX[i], 1) - center(1);
+         pt(2) = X(CHF_AUTOIX[i], 2) - center(2)]
+         currad = sqrt(CHF_DTERM[pt(0)*pt(0);
+     &        + pt(1)*pt(1);
+     &        + pt(2)*pt(2)])
+         perc = half*(one + tanh((radius - currad)*Cr))
+         if(rho1 .lt. zero) then
+            rhoval = -1.
+            tval = t1 + perc*(t2 - t1)
+            pval = p1 + perc*(p2 - p1)
+         else if(p1 .lt. zero) then
+            pval = -1.
+            tval = t1 + perc*(t2 - t1)
+            rhoval = rho1 + perc*(rho2 - rho1)
+         else
+            tval = -1.
+            pval = p1 + perc*(p2 - p1)
+            rhoval = rho1 + perc*(rho2 - rho1)
+         endif
+         W(CHF_AUTOIX[i],rcomp) = rhoval
+         W(CHF_AUTOIX[i],pcomp) = pval
+         W(CHF_AUTOIX[i],tcomp) = tval
+         do comp = 0, numspecies - 1
+            scomp = compstart + comp
+            W(CHF_AUTOIX[i],scomp) = specr1(comp) +
+     &           perc*(specr2(comp) - specr1(comp))
+         enddo
+         CHF_DTERM[
+         W(CHF_AUTOIX[i], momcomp) = u1(0);
+         W(CHF_AUTOIX[i], momcomp+1) = u1(1);
+         W(CHF_AUTOIX[i], momcomp+2) = u1(2)]
+      CHF_ENDDO
+
+      return
+      end
+      
+c     ----------------------------------------------------------------------
+c     Sets the primitive values for the shock bubble reaction problem
+c     
+c     W            <=  Primitive variables
+c     box           => Where to initialize/solve
+c     X             => The physical locations on the boundary
+c     rcomp         => Density component
+c     tcomp         => Temperature component
+c     momcomp       => Velocity component in x direction
+c     compstart     => First component of the species equations
+c     o2comp        => Component number for O2
+c     h2comp        => Component number for H2
+c     n2comp        => Component number for N2
+c     center        => Center of the bubble
+c     radius        => Radius of the bubble
+c     u0-1          => Velocity up and down stream of shock, respectively
+c     Cr            => Constant in Y_H2 equation
+c     shockloc      => Location of the shock
+c     t0-1,p0-1     => Temperature and pressure up and down stream of shock
+c     ----------------------------------------------------------------------
+
+      subroutine CNSIBCSHOCKBUBBLE(
+     &     CHF_FRA[W],
+     &     CHF_BOX[box],
+     &     CHF_CONST_FRA[X],
+     &     CHF_CONST_INT[rcomp],
+     &     CHF_CONST_INT[pcomp],
+     &     CHF_CONST_INT[tcomp],
+     &     CHF_CONST_INT[momcomp],
+     &     CHF_CONST_INT[compstart],
+     &     CHF_CONST_INT[o2comp],
+     &     CHF_CONST_INT[h2comp],
+     &     CHF_CONST_INT[n2comp],
+     &     CHF_CONST_REALVECT[center],
+     &     CHF_CONST_REAL[radius],
+     &     CHF_CONST_REALVECT[u0],
+     &     CHF_CONST_REALVECT[u1],
+     &     CHF_CONST_REAL[Cr],
+     &     CHF_CONST_REAL[shockloc],
+     &     CHF_CONST_REAL[t0],
+     &     CHF_CONST_REAL[t1],
+     &     CHF_CONST_REAL[p0],
+     &     CHF_CONST_REAL[p1])
+
+      integer CHF_AUTODECL[i]
+      integer comp, spcompo2, spcomph2, spcompn2
+      real_t pt(0:CH_SPACEDIM-1), yh2, yo2, rhomix
+      real_t o2airmix, n2airmix, currad, remcn
+
+      o2airmix = 0.233
+      n2airmix = 0.767
+      spcompo2 = compstart + o2comp
+      spcomph2 = compstart + h2comp
+      spcompn2 = compstart + n2comp
+      CHF_AUTOMULTIDO[box;i]
+         W(CHF_AUTOIX[i],rcomp) = -1.
+         CHF_DTERM[
+         pt(0) = X(CHF_AUTOIX[i], 0);
+         pt(1) = X(CHF_AUTOIX[i], 1);
+         pt(2) = X(CHF_AUTOIX[i], 2)]
+         if(pt(0) .gt. shockloc) then
+            CHF_DTERM[
+            W(CHF_AUTOIX[i],momcomp) = u1(0);
+            W(CHF_AUTOIX[i],momcomp+1) = u1(1);
+            W(CHF_AUTOIX[i],momcomp+2) = u1(2)]
+            W(CHF_AUTOIX[i],pcomp) = p1
+            W(CHF_AUTOIX[i],tcomp) = t1
+            W(CHF_AUTOIX[i],spcompo2) = o2airmix
+            W(CHF_AUTOIX[i],spcompn2) = n2airmix
+         else
+            currad = sqrt(CHF_DTERM[
+     &           (pt(0)-center(0))**2;
+     &           +(pt(1)-center(1))**2;
+     &           +(pt(2)-center(2))**2])
+            yh2 = half*(1 + tanh((radius - currad)*100.0d0/Cr))
+            remcn = one - yh2
+            W(CHF_AUTOIX[i],spcomph2) = yh2
+            W(CHF_AUTOIX[i],spcompo2) = remcn*o2airmix
+            W(CHF_AUTOIX[i],spcompn2) = remcn*n2airmix
+            CHF_DTERM[
+            W(CHF_AUTOIX[i],momcomp) = u0(0);
+            W(CHF_AUTOIX[i],momcomp+1) = u0(1);
+            W(CHF_AUTOIX[i],momcomp+2) = u0(2)]
+            W(CHF_AUTOIX[i],pcomp) = p0
+            W(CHF_AUTOIX[i],tcomp) = t0
+         endif
+      CHF_ENDDO
+
+      return
+      end

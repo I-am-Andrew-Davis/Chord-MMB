@@ -1,0 +1,97 @@
+#====================================================================
+#
+# Advection of a Gaussian profile on a cubic domain
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 4
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 1
+file.plot_prefix = test.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 0
+file.checkpoint_prefix = test.chkpnt.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = EulerAdvectionCube
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 32 32 32
+
+# Physical domain origin (optional: default 0)
+grid.domain_origin = 0.0 0.0 0.0
+
+# Physical domain length
+grid.domain_length = 1.0 1.0 1.0
+
+# Coordinate system (comment out to use Cartesian)
+coordsys.type = cartesian_MMB
+coordsys.scale = 0.1 0.1 0.0
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 1
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 2.0
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 1
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 2 2
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 2
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 16
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+#--------------------------------------------------------------------
+# IBC
+#--------------------------------------------------------------------
+
+ibc.tag_threshold = 0.01

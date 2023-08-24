@@ -1,0 +1,436 @@
+#====================================================================
+#
+# Channel Separation flow from an Extruded Domain
+#
+# Re_L = rho_inf*u_inf*L/mu_inf = 3x10^5 (Low), 1x10^6 (Med), or 3x10^6 (High)
+# Ma_inf = u_inf/sqrt(gamma*p_inf/rho_inf) = 0.2
+# Pr = 0.71
+# u_inf = rho_inf = L = T_inf = 1
+# p_inf = R = 17.\overline{857142}
+# delta_99 = 0.99*u_inf = 0.032*L @ x = -0.62
+# gamma = 1.4, cp = 62.5
+#
+# Re_L:      mu_inf:                   kappa_inf:
+# 3x10^5     3.\overline{33}x10^-6     2.934272x10^-4 (1/(4800*Pr))
+# 1x10^6     1x10^-6                   8.802817x10^-5
+# 3x10^6     3.\overline{33}x10^-7     2.934272x10^-5
+#
+# Assumptions:
+# rho_outlet = rho_inlet (\bar{rho} increases slightly ~ 1.008 - 1.01)
+# \bar{u}_outlet = u_inf*Area_inlet/Area_outlet = 0.7\overline{027}
+# p_outlet = p_inlet + 0.5*rho_inf*(u_inf*u_inf - u_outlet*u_outlet)
+#          = 18.1102473
+#
+#====================================================================
+
+#NOTE: this file is compatible for 2D or 3D runs
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/channelSeparation_MMB.chkpnt.010000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 10
+file.plot_prefix = plot/channelSeparation_MMB.plot.
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 1000
+file.checkpoint_prefix = checkpoint/channelSeparation_MMB.chkpnt.
+
+# Plot additional variables
+file.plot_mapped_derivs = 1
+
+# Plot time-averaged quantities
+file.plot_time_averaged_turb_var = 1
+# Time to start averaging
+turb.start_averaging_time = 40.0
+
+# Add wall-model to restart that previously didn't have wall-model
+#file.add_wall_model_on_restart = 1
+
+# Plot coordinates of low-faces
+#file.plot_lo_face_coordinates = 1
+
+# NOTE: The following is in development
+file.plot_low_face_avg = primitive fluxes turb
+file.plot_low_face_avg_time_avg = primitive fluxes turb
+# file.plot_low_face_avg = primitive fluxes turb NtJ faceNormals velGrad TGrad 
+# file.plot_low_face_avg_time_avg = primitive fluxes turb velGrad TGrad
+
+# file.plot_cell_average = conservative primitive RHS velGrad rhoGrad specGrad J
+# file.plot_cell_centered = primitive
+# file.plot_lo_face_average = primitive fluxes NtJ faceNormals
+# file.plot_lo_face_centered = primitive
+# file.plot_hi_face_average = primitive
+# file.plot_hi_face_centered = primitive
+# file.plot_time_averaged_cell_average = primitive RHS turbulence
+# file.plot_time_averaged_cell_centered = primitive
+# file.plot_time_averaged_lo_face_average = primitive fluxes NtJ faceNormals
+# file.plot_time_averaged_lo_face_centered = primitive
+# file.plot_time_averaged_hi_face_average = primitive
+# file.plot_time_averaged_hi_face_centered = primitive
+
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemChannelSeparation
+physics.fluid_models = inertial viscous #multispecies
+
+# Turbulence model
+turb.turb_model = LES
+
+# LES subgrid-scale model
+#turb.sgs_model = Smagorinsky
+turb.sgs_model = StretchedVortex
+
+# Stretched-vortex model options
+
+# Vortex model is either 0 or 1
+# Default = 0: 0 = normal family of models
+#              1 = cross-product of resolved vorticity and eigenvector of srt
+turb.vortex_model = 0
+
+# VortexProportion is [0,1]
+# Default = 1: 1 = most extensional eigenvector of strain-rate tensor
+#              0 = resolved vorticity vector
+turb.vortex_proportion = 1
+
+# Correction for pressure from SVS model estimate of SGS KE
+turb.use_sgs_ke_pressure_correction = 0
+
+# Coarsening method for computing SV model SGS kinetic energy estimate
+turb.use_sgs_coarsening = 0
+
+# Coarsening ratio to be used on the coarsest (base) level
+turb.sgs_ke_coarsest_coarsening_ratio = 1
+
+# Stretched-vortex wall-model
+turb.use_wall_model = 1
+
+# Use only wall-model (no interior SGS stress model)
+turb.only_use_wall_model = 0
+
+# Global streamwise direction for the wall-model
+turb.streamwise_direction = 1. 0. 0.
+
+# Coarsening ratio for wall-model computation (Default: 1)
+turb.wall_model_coarsening_ratio = 1
+
+# Height of virtual-wall as a fraction of first cell wall-normal height
+turb.virtual_wall_height = 0.18
+
+# #--------------------------------------------------------------------
+# # Grid
+# #--------------------------------------------------------------------
+
+# grid.file = grids/2D_wmles.cgns
+# #grid.file = grids/3D_wmles.cgns
+# grid.z_dx = 0.016 # Must be 0.128/z_length (0.128 is the width of the domain)
+# grid.l_dx = 0.02083333333333333
+# grid.r_dx = 0.02083333333333333
+# #This is the number of cells you want in the l "left" direction
+# # r, "right" direction, or z direction. The point of reference is if you are looking
+# #at the case and the flow is going from left to right
+# grid.z_length = 8
+# grid.l_length = 64 # Covers up to -0.62 plus some to get to -1.5
+# grid.r_length = 184 # Covers up to 4L (4) plus 1L to get to 5L (5)
+
+# # Are the blocks conformal? Default is 0 (false)
+# grid.is_conformal = 1
+
+# # Is this just running the inlet block (covering the flat-plate)?
+# grid.only_simulate_channel_inlet = 0
+
+# # Coordinate system (comment out to use Cartesian)
+# coordsys.type = ChannelSeparation_MMB
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coordinate system (comment out to use Cartesian)
+coordsys.type = smooth_ramp_MMB
+coordsys.new_geometry = 1 # 0 would be using the previous geometry
+
+# Finer mesh
+# This is only to get the number of cells in the y and z directions
+grid.num_cells = 32 64 8
+# This is a dummy length, but it must have the same value as grid.num_cells
+grid.domain_length = 32 64 8
+
+# # Stretched mesh
+# # This is only to get the number of cells in the y and z directions
+# grid.num_cells = 32 32 8
+# # This is a dummy length, but it must have the same value as grid.num_cells
+# grid.domain_length = 32 32 8
+
+# Spanwise domain width
+coordsys.spanwise_domain_width = 0.128
+
+# Is this just running the inlet block (covering the flat-plate)?
+coordsys.only_simulate_channel_inlet = 0
+
+# Number of cells in the x-direction in the inlet region
+# Setting this to 40 provides a domain up to x = -1.5
+coordsys.num_x_cells_inlet_block = 64
+
+# Number of cells in the x-direction just before the ramp in the ramp block
+coordsys.num_x_cells_ramp_block_before_ramp = 8
+
+# Number of cells in the x-direction in the entire ramp block
+coordsys.num_x_cells_total_ramp_block = 64
+
+# Number of cells in the x-direction just after the ramp in the ramp block
+coordsys.num_x_cells_ramp_block_after_ramp = 8
+
+# Number of cells in the x-direction in the outlet block
+coordsys.num_x_cells_outlet_block = 184 # This makes the end at x = 5
+
+# Finer mesh (very little stretching)
+# Wall-normal stretching
+coordsys.wall_normal_stretch = 0.000065
+# Wall-normal relaxation of ramp-height
+coordsys.wall_normal_ramp_height_relaxation = -0.00025
+
+# # # Stretched mesh
+# # Wall-normal stretching
+# coordsys.wall_normal_stretch = 0.00055
+# # Wall-normal relaxation of ramp-height
+# coordsys.wall_normal_ramp_height_relaxation = -0.001
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+state.names = "inlet" "outlet" "wall"
+state.inlet_frame-velocity = 1.0 0.0 0.0
+state.inlet_density = 1.0
+state.inlet_velocity = 1.0 0.0 0.0
+#state.inlet_pressure = 17.857142857142
+state.inlet_temperature = 1.0
+
+state.outlet_frame-velocity = 0.7027027027 0.0 0.0
+state.outlet_velocity = 0.7027027027 0.0 0.0
+state.outlet_pressure = 18.1 # outlet pressure is higher due to expansion
+                             # this value assumes potential flow
+state.outlet_density = 1.0
+#state.outlet_temperature = 1.0
+
+#NOTE this file is compatible for 2D or 3D runs
+
+# Define boundary condition relaxation for characteristic boundary conditions
+ibc.bc_state_relax-default = 0.0
+ibc.bc_wave_relax-default = 0.0
+
+# Define boundary conditions types
+ibc.bc_type-default = AdiabaticWall
+ibc.bc_type-block_0_x_lo = RelaxedCBCIn
+ibc.bc_type-block_2_x_hi = RelaxedCBCOut
+# Define boundary conditions types
+ibc.bc_state-default = wall
+ibc.bc_state-block_0_x_lo = inlet
+ibc.bc_state-block_2_x_hi = outlet
+# Top boundary is a slip-wall
+ibc.bc_type-block_0_y_hi = SlipWall
+ibc.bc_type-block_1_y_hi = SlipWall
+ibc.bc_type-block_2_y_hi = SlipWall
+
+# This is only read by the solver if just the inlet block is being used
+ibc.bc_type-block_0_x_hi = RelaxedCBCOut
+ibc.bc_state-block_0_x_hi = inlet
+ibc.bc_state_relax-block_0_x_hi = 0.0
+ibc.bc_wave_relax-block_0_x_hi = 0.0
+
+# Periodicity
+ibc.periodicity = 0 0 1
+
+# State used for initial conditions
+ibc.initial_state = inlet
+
+# Define boundary condition order of accuracy
+ibc.bc_order-default = 1
+# ibc.bc_order-block_0_y_lo = 4 # fourth-order accurate no-slip walls
+# ibc.bc_order-block_1_y_lo = 4
+# ibc.bc_order-block_2_y_lo = 4
+
+# Boundary layer thickness at inlet
+ibc.inlet_boundary_layer_thickness = 0.015
+# Boundary layer thickness at outlet (not necessarily used)
+ibc.outlet_boundary_layer_thickness = 0.04
+# Guess the maximum possible y-plus value in the first wall adjacent cell
+ibc.y_plus_max_guess = 1.E10
+# Magnitude of perturbation velocity
+ibc.vel_perturb_magnitude = 0.4
+# Number of perturbations in the domain
+ibc.perturb_freq = 42 16 4
+
+# Location of recycling plane (percent of domain length)
+# NOTE: this is a grid specific parameter (should be a periodic location)
+ibc.recycling_plane_location = 0.16666666666666667
+
+# Recycling height control
+ibc.delta_recy_scaling = 0.85
+
+#--------------------------------------------------------------------
+# Fluid Properties
+#--------------------------------------------------------------------
+
+fluid.R = 17.857142857142
+
+# # ----------------------- #
+# # ---- Re_L = 3x10^5 ---- #
+# # ----------------------- #
+# # Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# # Set to -1 so that mu is solved based on temperature
+# fluid.mu = 3.33333333E-6
+# # Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# # Set to -1 so that K is solved based on temperature
+# fluid.K = 2.934272E-4
+
+# ----------------------- #
+# ---- Re_L = 1x10^6 ---- #
+# ----------------------- #
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = 1.0E-6
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = 8.802817E-5
+
+# # ----------------------- #
+# # ---- Re_L = 3x10^6 ---- #
+# # ----------------------- #
+# # Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# # Set to -1 so that mu is solved based on temperature
+# fluid.mu = 3.33333333E-7
+# # Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# # Set to -1 so that K is solved based on temperature
+# fluid.K = 2.934272E-5
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 1000
+
+# Initial solution time (optional: default 0.0)
+sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 10000.0
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 5.0E-3
+
+# CFL number (optional: default 1.0)
+#sol.cfl = 1.0
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderUpwind, FourthOrderCentral,
+# and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default 5)
+#limit.face_order = 4
+
+# Other limiting options set by limit.method
+limit.use_flattening = 0
+#limit.extra_boundary_limiting = 1
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 0
+
+# Artificial viscosity parameter (optional: default 0.3)
+limit.artificial_viscosity_coef = 0.
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3).  Note
+# that 0.42 is 0.3*gamma
+limit.fourth_order_artificial_viscosity_coef = 0.
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 4 2
+
+# Regridding interval for each level
+amr.regrid_interval = -1 -1 # fixed refinement for now
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 0
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 8
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1
+
+# Regrid on restart
+#amr.regrid_on_restart = 1
+
+#--------------------------------------------------------------------
+# Threads
+#--------------------------------------------------------------------
+
+# threads.useThreads = true
+# threads.numThreads = 2
+# threads.threadsPerTeam = 2
+# threads.extraStackSize_MiB = 0
+# threads.useHyperThreading = false
+
+#--------------------------------------------------------------------
+# Tagging
+#--------------------------------------------------------------------
+
+# tag.level_0 = boundary block_0 1 low 6
+# tag.level_0 = boundary block_1 1 low 6
+# tag.level_0 = physical_box 0. -3 -3 3 0.35 3.
+
+# tag.level_1 = physical_box -3 -3 -3 0. 0.27 3.
+# tag.level_1 = boundary block_1 1 low 1
+# tag.level_1 = physical_box 1 -3 -3 4. 0.02 3.
+
+tag.level_0 = boundary block_0 1 low 6
+tag.level_0 = boundary block_1 1 low 6
+tag.level_0 = physical_box 0. -3 -3 3 0.25 3.
+tag.level_0 = buffer 4
+
+tag.level_1 = boundary block_0 1 low 12
+tag.level_1 = boundary block_1 1 low 12
+tag.level_1 = buffer 2
+tag.level_1 = physical_box 0. -3 -3 3 0.35 3.

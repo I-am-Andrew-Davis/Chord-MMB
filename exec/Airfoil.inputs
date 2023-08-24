@@ -1,0 +1,271 @@
+#====================================================================
+#
+# Generalized Problem
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/plotname.001000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_interval = 1
+file.plot_prefix = plot/airfoil.plot.
+#file.plot_extra_vars = -1
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 2500
+file.checkpoint_prefix = checkpoint/airfoil.
+
+file.plot_mapped_derivs = 1
+file.plot_extra_vars = 1
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+# sim.problem_type = ProblemGeneralized
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = CylinderFlow #ProblemGeneralized #CylinderFlow
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+physics.fluid_models = inertial viscous multispecies
+
+#--------------------------------------------------------------------
+# Turbulence Model
+#--------------------------------------------------------------------
+
+# Specify turbulence model. Options are SA or LES
+# (optional: default none)
+turb.turb_model = SA
+
+# Specify the initial turbulent intensity
+turb.init_turb_intensity = 0.01
+
+# Specify the turbulent Prandtl number (optional: default 0.71)
+turb.prandtl_num = 0.9
+
+# Specify reference length for initial and inlet turbulent intensity
+# Uses ref_length*0.07 for calculating initial and inlet values
+turb.ref_length = 1.0
+
+#--------------------------------------------------------------------
+# Thermally Perfect Multispecies
+#--------------------------------------------------------------------
+
+# If schmidt_number > 0., then schmidt number is used
+#therm.schmidt_num = 1.
+# Set if some species specific Lewis numbers are used (optional: default true)
+#therm.multiple_lewis_numbers = true
+# Set the file to use for species specific Lewis numbers
+# (optional: default Mechanism_files/speciesLewisNumbers.inp)
+#therm.lewis_number_file = Mechanism_files/speciesLewisNumbers.inp
+# Define default Lewis number or only Lewis number
+# if multiple_lewis_number = false
+#therm.lewis_num = 1.
+
+# List of species for problem
+therm.species = O2 N2
+
+# Using species correction (default: true)
+# therm.use_species_correction = true
+
+# Which Riemann solver to use, adaptive, exact, or approx
+# (default: adaptive)
+# therm.riemann_solver = exact
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Initial velocity
+ibc.init_temperature = 300.
+#ibc.init_pressure = 101325.
+#ibc.init_velocity = 52.045949 0. 0.
+ibc.init_pressure = 183535.
+ibc.init_velocity = 52.168956 0. 0.
+ibc.init_specs = N2 O2
+ibc.init_mfs = 0.767 0.233 
+
+# Define which directions are periodic, 1 means it is periodic
+ibc.periodicity = 1 0 1
+
+# Define boundary conditions for non-periodic directions, lo and hi
+ibc.lo_bc_y = AdiabaticWall
+ibc.hi_bc_y = Farfield
+# Define order of BC (default: 4)
+ibc.lo_bc_y_order = 1
+ibc.hi_bc_y_order = 1
+
+# Define parameters for boundary conditions
+# Define inlet conditions
+ibc.hi_bc_temp_y = 300.
+#ibc.hi_bc_pres_y = 101325.
+#ibc.hi_bc_vel_y = 52.045949 0. 0.
+ibc.hi_bc_pres_y = 183535.
+ibc.hi_bc_vel_y = 52.168956 0. 0.
+ibc.hi_bc_specs_y = N2 O2
+ibc.hi_bc_mfs_y = 0.767 0.233
+
+# Set percentage for base tagging in radial direction (default: 8%)
+ibc.radial_tagging = 0.08
+ibc.tag_dir = 1
+ibc.tag_side = 0
+
+# Tag vorticity magnitude values above threshold
+ibc.tag_threshold = 1e4 1e6
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 64 32 #32 16 #256 128 #128 64
+
+# get the airfoil grid from an Ogen file
+grid.file = grids/naca.hype.hdf
+
+# flip over the y-axis, this gives us positive J values
+grid.scale = 1 -1 1
+
+# #A comparable annulus grid
+# grid.num_cells = 128 256
+# grid.domain_length = 512 1024
+# coordsys.type = annulus
+coordsys.inner_radius = 1.0
+coordsys.outer_radius = 500.
+# coordsys.radial_stretch = 3.0
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Reynolds number (optional: default 1.)
+fluid.Re = 6000000
+# inlet M = 0.15
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = -1  #1.847e-5
+#fluid.mu = 1.020896e-5
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = -1  #2.624e-2
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 1000
+
+# Initial solution time (optional: default 0.0)
+#sol.initial_time = 0.0
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 10000
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-7
+
+# Limit on the time step growth (optional: default 1.1)
+#sol.max_dt_growth = 1.
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 0.8
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 0.8
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening,
+# face_order)
+# Options are FourthOrderPPM, FifthOrderPPM, FifthOrderUpwind,
+# FourthOrderCentral, and FirstOrderGodunov (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Order of face construction
+# Options are 1, 4, or 5 (optional: default set by method)
+#limit.face_order = 4
+
+# Convolution and deconvolution flattening
+# Flattening of convolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.convolution_flattening = false
+
+# Flattening of deconvolution operations
+# Options are true, false, and 2nd (optional: default false)
+#limit.deconvolution_flattening = true
+
+# Or these can be set individually, options are true, false, and 2nd
+#limit.flatten_cell_convolution = false
+#limit.flatten_cell_deconvolution = 2nd
+#limit.flatten_face_convolution = false
+#limit.flatten_face_deconvolution = true
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+limit.artificial_viscosity_coef = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+#limit.fourth_order_artificial_viscosity_coef = 0.3
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 0
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2 4 4
+
+# Regridding interval for each level
+amr.regrid_interval = 10 10 10 10
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 2
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 1

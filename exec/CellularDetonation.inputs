@@ -1,0 +1,293 @@
+#====================================================================
+#
+# Basic Testing
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+verbosity = 1
+
+# Line size
+terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# Restart file information
+#file.restart_file = checkpoint/celldet.185000.2d.hdf5
+
+# Plot file information (optional: default no plots)
+file.plot_period = 5.E-7
+file.plot_prefix = plot/celldet.plot.
+#file.plot_JU = 1
+
+# Checkpoint file information (optional: default no checkpoints)
+file.checkpoint_interval = 1000
+file.checkpoint_prefix = checkpoint/celldet.
+
+#--------------------------------------------------------------------
+# Simulation
+#--------------------------------------------------------------------
+
+# Internal simulation defines all subsequent parameters
+sim.problem_type = ProblemFlame
+
+#--------------------------------------------------------------------
+# Physics
+#--------------------------------------------------------------------
+
+# Only use inertial and thermally perfect physics
+physics.fluid_models = inertial multispecies viscous
+
+#--------------------------------------------------------------------
+# Thermally Perfect Multispecies
+#--------------------------------------------------------------------
+
+# If schmidt_number > 0., then schmidt number is used
+#therm.schmidt_num = 1.
+# Set if some species specific Lewis numbers are used (optional: default true)
+therm.multiple_lewis_numbers = false
+# Set the file to use for species specific Lewis numbers
+# (optional: default Mechanism_files/speciesLewisNumbers.inp)
+therm.lewis_number_file = Mechanism_files/speciesLewisNumbers.inp
+# Define default Lewis number or only Lewis number
+# if multiple_lewis_number = false
+therm.lewis_num = 1.
+
+# Using species correction (default: true)
+therm.use_species_correction = true
+
+therm.species = H2 O2 H2O OH O H HO2 H2O2 N2 He Ar
+therm.num_of_reactions = 19
+therm.reaction_file = Mechanism_files/refH2model.inp
+
+# Speedup methods
+# These are methods that reduce the computational cost associated with
+# solving the reaction terms. Be careful, as they can potentially impact
+# accuracy and validity of the solution
+
+# Lower temperature limit for solving reactions
+therm.cutoff_temperature = 600.0
+
+# Set temperature difference to resolve Gibbs energy in reactin source terms
+therm.temperature_diff_resolve = 3.
+
+# Set minimum level on which reactions are solved
+#therm.min_react_level = 1
+
+#--------------------------------------------------------------------
+# Initial and Boundary Conditions
+#--------------------------------------------------------------------
+
+# Initial mass fractions for region 1
+ibc.init_specs = H2 O2 Ar
+ibc.init_mfs = 0.012736 0.101376 0.885888
+
+# Initial values for region 1
+# Initial velocity and temperature in region 1
+# which should match the inlet velocity and temperature
+ibc.init_temperature = 300.
+ibc.init_velocity = 0. 0. 0.
+ibc.init_pressure = 6607.
+# Set initial conditions in region 2
+ibc.rho2 = -1.
+ibc.t2 = 900.
+ibc.p2 = 648535.95
+ibc.region_2_specs = He
+ibc.region_2_mfs = 1.
+
+# Set the sharpness of the interface; the higher this value is
+# the sharper the interface
+ibc.interface_sharpness = 1.E8
+
+# Define which directions are periodic
+ibc.periodicity = 0 1 0
+
+# Define boundary conditions for non-periodic directions, lo and hi
+ibc.lo_bc_x = SlipWall
+ibc.hi_bc_x = Extrapolated
+ibc.lo_bc_y = SlipWall
+ibc.hi_bc_y = SlipWall
+# Define order of BC (default: 4)
+ibc.lo_bc_x_order = 1
+ibc.hi_bc_x_order = 1
+ibc.lo_bc_y_order = 1
+ibc.hi_bc_y_order = 1
+
+# Set initial perturbations with a circle region
+# Location of the center of the circle
+# ibc.pert_start_point = 0.02 0.009 0.
+# Radius of the perturbation circle
+# ibc.pert_radius = 0.004
+# Pressure in circle
+# ibc.pert_pressure = 7.13389E5
+# Temperature in circle
+# ibc.pert_temperature = 990.
+# Smoothing factor for circle
+# ibc.pert_cr = 1.E8
+
+# Set initial perturbations with a square region
+# ibc.pert_start_point = 0.25
+# ibc.pert_end_point = 0.275
+# ibc.pert_pressure = 50000.
+# ibc.pert_temperature = 400.
+# ibc.init_pert_mag = 0.1
+# ibc.init_pert_period = 3.4E-3
+
+# Set perturbations for inlet
+# ibc.pert_start_time = 0.
+# ibc.pert_end_time = 1.2E-7
+# ibc.inlet_pert_mag = 10.
+# ibc.inlet_pert_period = 2.5E-8
+
+# Tagging information
+ibc.tag_type = gradient gradient
+ibc.tag_variable = temperature density
+ibc.tag_threshold = 0.03 0.03
+
+# Direction of flame
+ibc.flame_dir = 0
+# Direction of perturbations
+ibc.pert_dir = 1
+
+#--------------------------------------------------------------------
+# Grid
+#--------------------------------------------------------------------
+
+# Coarsest grid
+grid.num_cells = 2048 32 32
+grid.domain_length = 1.152 0.018 0.018
+
+# Make region 2 the lower 5% of the domain in the flame direction
+ibc.lo_end = -10. -10. -10.
+ibc.hi_end = 3.E-2 1. 1.
+
+# Coordinate system (comment out to use Cartesian)
+# coordsys.type = warped
+# coordsys.scale = 0.1 0.1 0.0 
+# coordsys.relative_tolerance = 1.0e-12
+# coordsys.absolute_tolerance = 1.0e-13
+# coordsys.maximum_iterations = 100
+
+#--------------------------------------------------------------------
+# Fluid
+#--------------------------------------------------------------------
+
+# Dynamic viscosity (optional: default 1.7894E-5 (m^2/s))
+# Set to -1 so that mu is solved based on temperature
+fluid.mu = -1.
+
+# Thermal conductivity (optional: default 2.5326E-2 (W/m-K))
+# Set to -1 so that K is solved based on temperature
+fluid.K = -1.
+
+#--------------------------------------------------------------------
+# Solver parameters
+#--------------------------------------------------------------------
+
+# Maximum number of steps (optional: default 0)
+sol.max_step = 100000
+
+# Initial solution time (optional: default 0.0)
+#sol.initial_time = 0.0
+
+# Initial time step size
+#sol.initial_dt = 5.E-11
+
+# Maximum solution time (optional: default 0.0, use leading + for delta from
+# initial time)
+sol.max_time = 100
+
+# Time step parameters (optional: default 0.0 for variable dt)
+#sol.fixed_dt = 1.0E-9
+
+# Limit on the time step growth (optional: default 1.1)
+sol.max_dt_growth = 1.1
+
+# Let the time step grow by this factor above the "maximum" before reducing it
+# (optional: default 1.1)
+#sol.dt_tolerance_factor = 1.0
+
+# CFL number (optional: default 1.0)
+sol.cfl = 0.75
+
+# Initial CFD for ramping (optional: default cfl)
+#sol.initial_cfl = 0.5
+
+#--------------------------------------------------------------------
+# Limiter
+#--------------------------------------------------------------------
+
+# Limiter summary (sets PPM_limiter, limit_face_values, use_flattening)
+# Options are FourthOrderPPM, FourthOrderCentral, FirstOrderGodunov
+# (optional: default FourthOrderPPM)
+limit.method = FourthOrderPPM
+
+# Convolution and deconvolution flattening
+# Flattening of convolution operations
+# Options are true, false, and 2nd (optional: default false)
+limit.convolution_flattening = false
+
+# Flattening of deconvolution operations
+# Options are true, false, and 2nd (optional: default false)
+limit.deconvolution_flattening = true
+
+# Flattening tolerances
+# r_0 tolerance (optional: default 0.45)
+#limit.r0_tol = 0.45
+# r_1 tolerance (optional: default 0.95)
+#limit.r1_tol = 0.95
+# Test 3 tolerance (optional: default 0.3)
+#limit.test3_tol = 0.55
+
+# Or these can be set individually, options are true, false, and 2nd
+#limit.flatten_cell_convolution = false
+#limit.flatten_cell_deconvolution = 2nd
+#limit.flatten_face_convolution = false
+#limit.flatten_face_deconvolution = true
+
+# Whether to use artificial viscosity (optional: default 1)
+limit.use_artificial_viscosity = 1
+
+# Artificial viscosity parameter (optional: default 0.3)
+#limit.artificial_viscosity = 0.3
+
+# Fourth-order artificial viscosity coefficient (optional: default 0.3)
+#limit.fourth_order_artificial_viscosity_coef = 0.42
+
+#--------------------------------------------------------------------
+# AMR
+#--------------------------------------------------------------------
+
+# Number of AMR levels
+amr.max_level = 2
+
+# Refinement ratio between levels
+amr.ref_ratio = 2 2
+
+# Regridding interval for each level
+amr.regrid_interval = 8 8 8 8
+
+# Amount to grow refined patch around tagged cells (optional: default 0)
+amr.tag_buffer_size = 10
+
+# Maximum size of a box (optional: default 32)
+amr.max_grid_size = 32
+
+# Amount of a refined patch that must be filled with tagged cells (optional:
+# default 0.75)
+amr.fill_ratio = 0.75
+
+# Buffer between grid level l-1 and l+1 (do not set - determined by code)
+#amr.grid_buffer_size = 2
+
+# Block factor (minimum grid size) (optional: default 8)
+amr.block_factor = 8
+
+# Use AMR in time (optional: default 1)
+amr.use_subcycling = 0
