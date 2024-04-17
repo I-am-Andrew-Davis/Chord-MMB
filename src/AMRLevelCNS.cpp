@@ -1236,6 +1236,11 @@ AMRLevelCNS::regrid(const Vector<Box>& a_newBoxes)
   if (AMRLevel::hasCoarserLevel())  // Use from base class since levelOpSetup()
     {                               // has not yet been called.  Of coarse, why
                                     // would the base level ever be regridded?
+                                    //
+      //set bool to determine status of constant extrapolation
+      //should almost always be false unless restarting
+      //and adding AMR levels - ald
+      m_levelGridMetrics.useConstExtrap(m_useConstExtrap);
       AMRLevelCNS *const coarserAMRLevel = getCoarserLevel();
       // Use references here to clearly avoid side-effects.  With proper
       // nesting, we only need <U> computed from valid <JU>.  I.e., 1 layer
